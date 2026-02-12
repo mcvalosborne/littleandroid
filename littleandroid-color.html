@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Little Android</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1510;overflow:hidden;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Press Start 2P',monospace;image-rendering:pixelated}
+#game-wrapper{position:relative;width:100vw;height:100vh;overflow:hidden}
+canvas{display:block;width:100%;height:100%;cursor:crosshair}
+#ui-overlay{position:absolute;top:0;left:0;right:0;pointer-events:none;z-index:10;display:flex;justify-content:center;padding:20px}
+#title-bar{background:rgba(10,10,10,0.8);backdrop-filter:blur(6px);border:2px solid #5A8848;border-radius:4px;padding:10px 24px;display:flex;align-items:center;gap:14px;box-shadow:0 0 20px rgba(90,136,72,0.2)}
+#title-bar h1{font-family:'Silkscreen',monospace;font-size:18px;color:#D4A030;text-shadow:2px 2px 0px #6B4820;letter-spacing:2px}
+#title-bar .dot{width:8px;height:8px;background:#D4A030;border-radius:50%;animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+#hint{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);font-family:'Silkscreen',monospace;font-size:11px;color:#D4A030;opacity:0.6;pointer-events:none;z-index:10;text-shadow:1px 1px 0px #6B4820;animation:fadeHint 4s ease-in-out infinite}
+@keyframes fadeHint{0%,100%{opacity:0.6}50%{opacity:0.2}}
+#controls{position:absolute;bottom:20px;left:20px;pointer-events:none;z-index:10;font-family:'Silkscreen',monospace;font-size:9px;color:#8A9870;line-height:1.8;text-shadow:1px 1px 0px #1a1510;opacity:0.7}
+#controls .key{display:inline-block;background:rgba(90,136,72,0.15);border:1px solid rgba(90,136,72,0.3);border-radius:3px;padding:1px 5px;font-family:'Press Start 2P',monospace;font-size:7px;color:#A8C088;margin-right:4px;vertical-align:middle}
+#coords{position:absolute;bottom:24px;right:24px;font-family:'Press Start 2P',monospace;font-size:8px;color:#5A8848;pointer-events:none;z-index:10}
+#emote{position:absolute;pointer-events:none;z-index:15;font-size:24px;transition:transform 0.15s ease-out,opacity 0.15s;transform:scale(0);opacity:0}
+#emote.show{transform:scale(1);opacity:1}
+</style>
+</head>
+<body>
+<div id="game-wrapper">
+  <canvas id="game"></canvas>
+  <div id="ui-overlay"><div id="title-bar"><div class="dot"></div><h1>littleandroid.com</h1><div class="dot"></div></div></div>
+  <div id="hint">click anywhere to walk</div>
+  <div id="controls">
+    <span class="key">WASD</span> move<br>
+    <span class="key">CLICK</span> walk to<br>
+    <span class="key">SPACE</span> scan
+  </div>
+  <div id="coords"></div>
+  <div id="emote"></div>
+</div>
+<script>
+// ══════════════════════════════════════════════════════
+// SETUP
+// ══════════════════════════════════════════════════════
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const coordsEl = document.getElementById('coords');
+const hintEl = document.getElementById('hint');
+const emoteEl = document.getElementById('emote');
+
+const PX = 3;
+const TILE = 16;
+const TS = TILE * PX;
+let W, H, COLS, ROWS;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  COLS = Math.ceil(W / TS) + 2;
+  ROWS = Math.ceil(H / TS) + 2;
+}
+resize();
+window.addEventListener('resize', resize);
+
+function gp(sx,sy,px,py,c){ctx.fillStyle=c;ctx.fillRect(sx+px*PX,sy+py*PX,PX,PX)}
+function gr(sx,sy,px,py,w,h,c){ctx.fillStyle=c;ctx.fillRect(sx+px*PX,sy+py*PX,w*PX,h*PX)}
+
+const S0='#E8E0D0',S1='#B0A890',S2='#585050',S3='#181820';
+const AC0='#A8BCC8',AC1='#7B8E98',AC2='#4A5E68';
+const AV='#2A5C5C',AV_H='#3A7878';
+const CORE0='#E8C040',CORE1='#D4A030',CORE2='#9A7020';
+const SK0='#F0D8B8',SK1='#E8C8A0',SK2='#C8A880';
+const HA0='#C06850',HA1='#A85040',HA2='#803828';
+const HB0='#72A858',HB1='#5A8848',HB2='#3A6828';
+const GR0='#88B858',GR1='#6B9848',GR2='#4A7830';
+const PT0='#D8B888',PT1='#C8A878',PT2='#A88858';
+const WT0='#68A0C8',WT1='#4878A0',WT2='#285878';
+const TR0='#5A8838',TR1='#3A6828',TR2='#284818';
+const TK0='#907050',TK1='#785838',TK2='#584028';
+const FC0='#787070',FC1='#585050',FC2='#383030';
+const MT0='#888888',MT1='#686868',MT2='#484848';
+const BG='#E8E0D0';
+const DG0='#D8C8B0',DG1='#C0B098',DG2='#988870';
+
+// ══════════════════════════════════════════════════════
+// MAP (24x20 River Factory Zone)
+// ══════════════════════════════════════════════════════
+const MW=24,MH=20;
+const map=[];
+for(let y=0;y<MH;y++){map[y]=[];for(let x=0;x<MW;x++)map[y][x]=0}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rng=mulberry32(77);
+
+// Factory
+for(let y=1;y<=5;y++)for(let x=1;x<=8;x++)map[y][x]=y===1?9:8;
+map[0][3]=11;map[0][7]=11;map[5][4]=10;map[5][5]=10;
+// River
+for(let y=0;y<MH;y++){map[y][17]=17;map[y][18]=5;map[y][19]=4;map[y][20]=5;if(21<MW)map[y][21]=17;if(22<MW)map[y][22]=0;if(23<MW)map[y][23]=0}
+// Bridge
+for(let x=17;x<=21;x++){map[9][x]=13;map[10][x]=12;map[11][x]=12;map[12][x]=13}
+// Path
+for(let y=6;y<=10;y++){map[y][4]=2;map[y][5]=2}
+for(let x=5;x<=17;x++){map[10][x]=2;map[11][x]=2}
+// Tall grass
+for(const[x1,y1,x2,y2]of[[10,2,14,5],[12,6,16,9],[1,13,6,17],[8,14,13,18]])
+  for(let y=y1;y<=Math.min(y2,MH-1);y++)for(let x=x1;x<=Math.min(x2,MW-1);x++)
+    if(map[y][x]===0&&rng()<0.6)map[y][x]=1;
+// Trees
+for(const[tx,cy]of[[15,2],[16,4],[15,6],[16,8],[15,14],[16,16],[13,3],[14,7],[13,13],[14,17],[3,8],[7,7],[10,8],[1,11],[8,12],[11,1],[12,3]]){
+  if(cy>=0&&cy<MH&&tx<MW){if(map[cy][tx]===0||map[cy][tx]===1)map[cy][tx]=6;if(cy+1<MH&&(map[cy+1][tx]===0||map[cy+1][tx]===1))map[cy+1][tx]=7}}
+// Details
+for(const[rx,ry]of[[12,10],[2,15],[9,17],[16,13]])if(map[ry][rx]===0||map[ry][rx]===1)map[ry][rx]=14;
+if(map[9][6]===0||map[9][6]===2)map[9][6]=15;
+if(map[6][3]===0)map[6][3]=16;
+
+function isWalkable(tx,ty){
+  if(tx<0||ty<0||tx>=MW||ty>=MH)return false;
+  const t=map[ty][tx];
+  return t!==4&&t!==5&&t!==6&&t!==7&&t!==8&&t!==9&&t!==11&&t!==13&&t!==14&&t!==17;
+}
+function isTileOccupiedByNPC(tx,ty,excludeNPC){
+  for(const n of npcs){
+    if(n===excludeNPC)continue;
+    if(Math.round(n.tileX)===tx&&Math.round(n.tileY)===ty)return n;
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════════════
+// TILE RENDERING (same as previous build)
+// ══════════════════════════════════════════════════════
+function drawTile(wx,wy,type,sx,sy){
+  const v=((wx*7+wy*13)&0xFF);
+  switch(type){
+    case 0:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);gp(sx,sy,3+(v&3),4+(v>>2&3),GR1);gp(sx,sy,10+(v>>4&3),11+(v>>6&1),GR1);gp(sx,sy,7+(v>>3&1),8+(v>>5&3),GR2);break;
+    case 1:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);for(let i=0;i<5;i++){const bx=1+((v+i*3)%13),by=2+((v+i*7)%10),sw=Math.sin(Date.now()/900+wx+wy+i)*0.4;gr(sx,sy,bx+sw,by,1,3,GR2);gp(sx,sy,bx+sw,by,GR1)}break;
+    case 2:ctx.fillStyle=PT1;ctx.fillRect(sx,sy,TS,TS);for(let py=3;py<16;py+=4)gr(sx,sy,0,py,16,1,PT2);gp(sx,sy,5+(v&3),2+(v>>2&3),PT2);gp(sx,sy,11+(v>>4&1),9+(v>>3&3),PT0);break;
+    case 4:{ctx.fillStyle=WT2;ctx.fillRect(sx,sy,TS,TS);const wo=Math.floor(Date.now()/500)%8;for(let py=0;py<16;py+=4)for(let px=0;px<16;px++){const w=Math.round(Math.sin((px+wo)*0.8)*0.8);if(py+w>=0&&py+w<16)gp(sx,sy,px,py+w,WT1)}gp(sx,sy,(v&7)+4,((v>>3)&3)+2,WT0);break}
+    case 5:{ctx.fillStyle=WT1;ctx.fillRect(sx,sy,TS,TS);const wo=Math.floor(Date.now()/500)%8;for(let py=2;py<16;py+=5)for(let px=0;px<16;px++){const w=Math.round(Math.sin((px+wo)*0.8)*0.6);if(py+w>=0&&py+w<16)gp(sx,sy,px,py+w,WT0)}break}
+    case 6:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,2,2,12,10,TR2);gr(sx,sy,3,1,10,11,TR2);gr(sx,sy,1,3,14,8,TR2);gr(sx,sy,4,3,8,7,TR1);gr(sx,sy,3,2,4,3,TR0);gp(sx,sy,4,3,GR0);gp(sx,sy,5,2,GR0);gp(sx,sy,9,5,TR0);gp(sx,sy,7,7,TR1);break;
+    case 7:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,6,0,4,16,TK1);gr(sx,sy,7,0,2,16,TK2);gr(sx,sy,6,0,1,16,TK0);gp(sx,sy,2,12,GR1);gp(sx,sy,12,10,GR1);break;
+    case 8:ctx.fillStyle=FC1;ctx.fillRect(sx,sy,TS,TS);for(let by=0;by<16;by+=3){const off=(by%6===0)?0:3;for(let bx=off;bx<16;bx+=6){gr(sx,sy,bx,by,5,2,FC2);gp(sx,sy,bx,by,FC0)}}break;
+    case 9:ctx.fillStyle=FC2;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,0,14,16,2,MT2);gp(sx,sy,4,6,MT1);gp(sx,sy,10,4,MT1);gp(sx,sy,7,8,MT0);break;
+    case 10:ctx.fillStyle=MT2;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,2,2,12,14,MT1);gr(sx,sy,2,8,12,1,CORE1);gp(sx,sy,10,6,CORE0);gp(sx,sy,10,10,CORE0);break;
+    case 11:{ctx.fillStyle=BG;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,5,4,6,12,FC1);gr(sx,sy,6,4,4,12,FC2);const sp=Math.sin(Date.now()/1200+wx)*2;ctx.globalAlpha=0.35;gr(sx,sy,5+sp,0,3,2,S1);gr(sx,sy,7+sp*0.5,1,2,2,S1);ctx.globalAlpha=1;break}
+    case 12:ctx.fillStyle=TK0;ctx.fillRect(sx,sy,TS,TS);for(let px=0;px<16;px+=3)gr(sx,sy,px,0,1,16,(px%6<3)?TK2:TK0);gp(sx,sy,4,4,S3);gp(sx,sy,10,12,S3);break;
+    case 13:ctx.fillStyle=TK1;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,0,6,16,4,TK2);gr(sx,sy,0,6,16,1,TK0);gr(sx,sy,2,2,2,12,TK2);gr(sx,sy,12,2,2,12,TK2);break;
+    case 14:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,3,5,10,8,S1);gr(sx,sy,4,4,8,9,S1);gr(sx,sy,6,10,6,3,S2);gr(sx,sy,10,7,3,4,S2);gr(sx,sy,4,5,4,3,S0);gp(sx,sy,5,5,BG);gp(sx,sy,6,6,BG);break;
+    case 15:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,7,6,2,10,TK2);gr(sx,sy,3,3,10,4,TK1);gr(sx,sy,4,4,8,2,TK0);gp(sx,sy,9,5,S3);gp(sx,sy,10,4,S3);gp(sx,sy,10,6,S3);break;
+    case 16:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,5,8,1,5,GR2);gr(sx,sy,10,9,1,4,GR2);gp(sx,sy,4,7,HA0);gp(sx,sy,5,6,HA0);gp(sx,sy,6,7,HA0);gp(sx,sy,5,7,CORE0);gp(sx,sy,9,8,CORE0);gp(sx,sy,10,7,CORE0);gp(sx,sy,11,8,CORE0);gp(sx,sy,10,8,HA1);gp(sx,sy,3,13,GR1);gp(sx,sy,12,11,GR1);break;
+    case 17:ctx.fillStyle=PT2;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,14,0,2,16,WT2);gp(sx,sy,2,5,GR0);gp(sx,sy,1,10,GR0);gp(sx,sy,4,14,PT1);break;
+    default:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// DIRECTION HELPERS
+// ══════════════════════════════════════════════════════
+const DIR={south:{dx:0,dy:1},north:{dx:0,dy:-1},east:{dx:1,dy:0},west:{dx:-1,dy:0}};
+function oppositeDir(d){return{south:'north',north:'south',east:'west',west:'east'}[d]}
+
+// ══════════════════════════════════════════════════════
+// UNIT-01 PLAYER CHARACTER (Full State Machine)
+// ══════════════════════════════════════════════════════
+const player = {
+  tileX:4, tileY:6, // current tile (integer when stationary)
+  renderX:4, renderY:6, // interpolated render position
+  facing:'south',
+  state:'IDLE', // IDLE, WALKING, BLOCKED, INTERACTING
+  walkFrame:0, walkTimer:0,
+  idleTimer:0, idleCoreOn:true,
+  // Movement
+  moveFromX:0, moveFromY:0, moveToX:0, moveToY:0,
+  moveProgress:0, moveSpeed:200, // ms per tile
+  // Blocked bump
+  bumpProgress:0, bumpDir:null,
+  // Interaction
+  interactTarget:null,
+  interactArmTimer:0,
+};
+
+function playerStartMove(dir) {
+  const d = DIR[dir];
+  const tx = player.tileX + d.dx, ty = player.tileY + d.dy;
+  player.facing = dir;
+
+  // Check NPC on target tile
+  const npcOnTile = isTileOccupiedByNPC(tx, ty, null);
+  if (npcOnTile || !isWalkable(tx, ty)) {
+    // BLOCKED
+    player.state = 'BLOCKED';
+    player.bumpDir = dir;
+    player.bumpProgress = 0;
+    return;
+  }
+
+  // WALKING
+  player.state = 'WALKING';
+  player.moveFromX = player.tileX; player.moveFromY = player.tileY;
+  player.moveToX = tx; player.moveToY = ty;
+  player.moveProgress = 0;
+  player.idleTimer = 0;
+}
+
+function drawUnit01(sx, sy, facing, walkFrame, moving, idleCoreOn, interacting) {
+  const f = facing;
+  const hx=4, hy=1;
+
+  // HEAD
+  gr(sx,sy,hx+1,hy,6,1,S3);gr(sx,sy,hx,hy+1,1,6,S3);gr(sx,sy,hx+7,hy+1,1,6,S3);
+  gr(sx,sy,hx+2,hy,4,1,AC1);gr(sx,sy,hx+1,hy+1,6,6,AC1);
+  gp(sx,sy,hx+1,hy+1,AC0);gp(sx,sy,hx+2,hy+1,AC0);gp(sx,sy,hx+1,hy+2,AC0);
+
+  // Antenna
+  if(f==='south'||f==='east'){gp(sx,sy,hx+6,hy-1,AC1);gp(sx,sy,hx+6,hy-2,AC0)}
+  else{gp(sx,sy,hx+1,hy-1,AC1);gp(sx,sy,hx+1,hy-2,AC0)}
+
+  // Visor
+  if(f==='south'){gr(sx,sy,hx+1,hy+2,6,2,AV);gp(sx,sy,hx+3,hy+3,AV_H)}
+  else if(f==='north'){gr(sx,sy,hx+3,hy+1,2,5,S3)}
+  else if(f==='east'){gr(sx,sy,hx+5,hy+2,2,2,AV);gp(sx,sy,hx+6,hy+3,AV_H)}
+  else{gr(sx,sy,hx+1,hy+2,2,2,AV);gp(sx,sy,hx+1,hy+3,AV_H)}
+
+  gr(sx,sy,hx+1,hy+6,6,1,S3); // neck seam
+
+  // TORSO
+  const tx=5,ty=hy+7;
+  gr(sx,sy,tx,ty,1,4,S3);gr(sx,sy,tx+5,ty,1,4,S3);
+  gr(sx,sy,tx+1,ty,4,4,AC1);gr(sx,sy,tx+1,ty+2,4,1,S3);gr(sx,sy,tx+1,ty+3,4,1,AC0);
+  gp(sx,sy,tx+3,ty+1,(!moving&&!idleCoreOn)?CORE2:CORE0); // status core
+
+  // ARMS
+  if (interacting) {
+    // Interaction frame: arms at 45 degrees
+    if(f!=='east'){gr(sx,sy,tx-2,ty-2,1,3,AC1);gp(sx,sy,tx-3,ty-2,AC1)}
+    if(f!=='west'){gr(sx,sy,tx+6,ty-2,1,3,AC1);gp(sx,sy,tx+7,ty-2,AC1)}
+  } else {
+    const armSwing=moving?(walkFrame===0?1:-1):0;
+    if(f!=='east'){gr(sx,sy,tx-1,ty-armSwing,1,3,AC1);gr(sx,sy,tx-2,ty+3-armSwing,2,1,AC1)}
+    if(f!=='west'){gr(sx,sy,tx+6,ty+armSwing,1,3,AC1);gr(sx,sy,tx+6,ty+3+armSwing,2,1,AC1)}
+  }
+
+  // LEGS (no vertical bounce)
+  const ly=ty+4;
+  const stride=moving?(walkFrame===0?1:-1):0;
+  gr(sx,sy,tx+1,ly+stride,2,4,AC2);gr(sx,sy,tx+3,ly-stride,2,4,AC2);
+  gr(sx,sy,tx+3,ly,1,4,S3);
+  gp(sx,sy,tx+2,ly+1+stride,AC1);gp(sx,sy,tx+3,ly+1-stride,AC1);
+  if(f!=='north'){gp(sx,sy,tx,ly+3+stride,AC0);gp(sx,sy,tx+5,ly+3-stride,AC0)}
+}
+
+// ══════════════════════════════════════════════════════
+// NPC SYSTEM (Full State Machines)
+// ══════════════════════════════════════════════════════
+const npcs = [];
+
+function makeNPC(type, x, y, facing, config) {
+  return {
+    type, tileX:x, tileY:y, renderX:x, renderY:y,
+    facing:facing||'south', origFacing:facing||'south',
+    state: type==='scout'?'PATROLLING':type==='child'?'RUNNING':type==='dog'?'TROTTING':
+           type==='mechanic'?(config&&config.patrolling?'PATROLLING':'WORKING'):
+           type==='elder'?'SURVEYING':'IDLE',
+    walkFrame:0, walkTimer:0, moving:false,
+    // Patrol
+    patrol:config&&config.patrol||[], patrolIndex:0,
+    // Movement
+    moveFromX:x, moveFromY:y, moveToX:x, moveToY:y, moveProgress:0,
+    // Timers
+    pauseTimer:0, pauseMax:0.5,
+    idleTimer:0, stateTimer:0,
+    // Dog specific
+    followCounter:0, spawnX:x, spawnY:y,
+    returnPath:null, returnIndex:0,
+    // Elder specific
+    rotationTimer:0, rotationStart:'south',
+    coreSpeed:3,
+    // Mechanic
+    workFrame:0, workTimer:0,
+    // Child
+    burstRemaining:0, burstDir:null,
+    // Interaction
+    interacting:false, storedFacing:facing||'south',
+    // Waiting (blocked by player)
+    waitTimer:0,
+    // Config
+    config: config||{},
+  };
+}
+
+// Create NPCs
+npcs.push(makeNPC('worker',3,4,'south'));
+npcs.push(makeNPC('worker',6,4,'east'));
+npcs.push(makeNPC('scout',8,8,'south',{patrol:[{x:8,y:8,f:'south'},{x:12,y:8,f:'east'},{x:12,y:6,f:'north'},{x:8,y:6,f:'west'}]}));
+npcs.push(makeNPC('elder',5,3,'south'));
+npcs.push(makeNPC('farmer',3,14,'south'));
+npcs.push(makeNPC('mechanic',9,5,'north',{patrolling:false}));
+npcs.push(makeNPC('child',6,12,'south'));
+npcs.push(makeNPC('dog',7,11,'east'));
+
+// Scan labels (fun names)
+const SCAN_LABELS = {
+  worker: ['UNIT-47','UNIT-12'],
+  scout: 'RECON-3',
+  elder: 'OVERSEER',
+  farmer: 'OLD DALE',
+  mechanic: 'SPARKS',
+  child: 'LIL BIT',
+  dog: 'GOOD BOY',
+};
+let workerIdx = 0;
+for (const npc of npcs) {
+  if (npc.type === 'worker') {
+    npc.scanLabel = SCAN_LABELS.worker[workerIdx++];
+  } else {
+    npc.scanLabel = SCAN_LABELS[npc.type] || npc.type.toUpperCase();
+  }
+}
+
+// Scan label display state (persists after wavefront passes)
+let scanLabels = []; // {npc, alpha, timer}
+
+// ── NPC Movement helpers ──
+function npcStartMove(npc, dir, speed) {
+  const d = DIR[dir];
+  const tx = npc.tileX + d.dx, ty = npc.tileY + d.dy;
+  if (!isWalkable(tx, ty)) return false;
+  // Check if player is on target tile
+  if (Math.round(player.tileX) === tx && Math.round(player.tileY) === ty) return false;
+  // Check other NPCs
+  if (isTileOccupiedByNPC(tx, ty, npc)) return false;
+  npc.facing = dir;
+  npc.moveFromX = npc.tileX; npc.moveFromY = npc.tileY;
+  npc.moveToX = tx; npc.moveToY = ty;
+  npc.moveProgress = 0;
+  npc.moving = true;
+  return true;
+}
+
+function npcUpdateMove(npc, dt, speedMs) {
+  if (!npc.moving) return;
+  npc.moveProgress += (dt * 1000) / speedMs;
+  if (npc.moveProgress >= 1) {
+    npc.moveProgress = 0;
+    npc.tileX = npc.moveToX; npc.tileY = npc.moveToY;
+    npc.renderX = npc.tileX; npc.renderY = npc.tileY;
+    npc.moving = false;
+  } else {
+    npc.renderX = npc.moveFromX + (npc.moveToX - npc.moveFromX) * npc.moveProgress;
+    npc.renderY = npc.moveFromY + (npc.moveToY - npc.moveFromY) * npc.moveProgress;
+  }
+  // Walk frame
+  npc.walkTimer += dt;
+  if (npc.walkTimer > 0.1) { npc.walkFrame = 1 - npc.walkFrame; npc.walkTimer = 0; }
+}
+
+function dirToward(fromX, fromY, toX, toY) {
+  const dx = toX - fromX, dy = toY - fromY;
+  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'east' : 'west';
+  if (dy !== 0) return dy > 0 ? 'south' : 'north';
+  return 'south';
+}
+
+// ── NPC State Updates ──
+function updateNPC(npc, dt) {
+  const t = Date.now();
+  npc.stateTimer += dt;
+
+  // Handle interaction state (universal)
+  if (npc.interacting) {
+    npc.moving = false;
+    return;
+  }
+
+  switch (npc.type) {
+    // ── WORKER: IDLE only, visor blink ──
+    case 'worker':
+      // Just exists. Visor blink handled in draw.
+      break;
+
+    // ── SCOUT: PATROLLING / PAUSED ──
+    case 'scout': {
+      if (npc.state === 'PATROLLING') {
+        if (!npc.moving) {
+          const wp = npc.patrol[npc.patrolIndex];
+          if (npc.tileX === wp.x && npc.tileY === wp.y) {
+            // Arrived at waypoint
+            npc.state = 'PAUSED';
+            npc.pauseTimer = 0;
+            npc.pauseMax = 0.5;
+            npc.facing = wp.f || npc.facing;
+            npc.moving = false;
+          } else {
+            // Move toward waypoint
+            const dir = dirToward(npc.tileX, npc.tileY, wp.x, wp.y);
+            if (!npcStartMove(npc, dir, 1000)) {
+              npc.waitTimer += dt;
+              // Wait and retry
+            }
+          }
+        }
+        npcUpdateMove(npc, dt, 1000); // 1000ms per tile
+      } else if (npc.state === 'PAUSED') {
+        npc.pauseTimer += dt;
+        if (npc.pauseTimer >= npc.pauseMax) {
+          npc.patrolIndex = (npc.patrolIndex + 1) % npc.patrol.length;
+          npc.state = 'PATROLLING';
+        }
+      }
+      break;
+    }
+
+    // ── ELDER: SURVEYING (rotates) ──
+    case 'elder': {
+      if (npc.state === 'SURVEYING') {
+        npc.rotationTimer += dt;
+        const dirs = ['south','west','north','east'];
+        const startIdx = dirs.indexOf(npc.rotationStart);
+        const phase = Math.floor(npc.rotationTimer / 4) % 4;
+        npc.facing = dirs[(startIdx + phase) % 4];
+      }
+      break;
+    }
+
+    // ── FARMER: IDLE only ──
+    case 'farmer': break;
+
+    // ── MECHANIC: WORKING or PATROLLING ──
+    case 'mechanic': {
+      if (npc.state === 'WORKING') {
+        npc.workTimer += dt;
+        npc.workFrame = Math.floor(npc.workTimer) % 2; // 1s cycle
+      } else if (npc.state === 'PATROLLING') {
+        if (!npc.moving) {
+          const wp = npc.patrol[npc.patrolIndex];
+          if (npc.tileX === wp.x && npc.tileY === wp.y) {
+            npc.patrolIndex = (npc.patrolIndex + 1) % npc.patrol.length;
+            npc.pauseTimer = 0;
+          } else {
+            const dir = dirToward(npc.tileX, npc.tileY, wp.x, wp.y);
+            npcStartMove(npc, dir, 200);
+          }
+        }
+        npcUpdateMove(npc, dt, 200);
+      }
+      break;
+    }
+
+    // ── CHILD: RUNNING / PAUSED ──
+    case 'child': {
+      if (npc.state === 'RUNNING') {
+        if (!npc.moving) {
+          if (npc.burstRemaining <= 0) {
+            // Burst complete, pause
+            npc.state = 'PAUSED';
+            npc.pauseTimer = 0;
+            npc.pauseMax = 1 + Math.random();
+          } else {
+            // Continue burst
+            if (!npcStartMove(npc, npc.burstDir, 150)) {
+              // Blocked, end burst
+              npc.state = 'PAUSED';
+              npc.pauseTimer = 0;
+              npc.pauseMax = 1 + Math.random();
+            } else {
+              npc.burstRemaining--;
+            }
+          }
+        }
+        npcUpdateMove(npc, dt, 150);
+      } else if (npc.state === 'PAUSED') {
+        npc.pauseTimer += dt;
+        if (npc.pauseTimer >= npc.pauseMax) {
+          // Start new burst
+          const dirs = ['north','south','east','west'];
+          const dir = dirs[Math.floor(Math.random() * 4)];
+          npc.burstDir = dir;
+          npc.burstRemaining = 2 + Math.floor(Math.random() * 2);
+          npc.state = 'RUNNING';
+        }
+      }
+      break;
+    }
+
+    // ── DOG: TROTTING / SNIFFING / FOLLOWING / RETURNING ──
+    case 'dog': {
+      if (npc.state === 'TROTTING') {
+        if (!npc.moving) {
+          if (npc.burstRemaining <= 0) {
+            npc.state = 'SNIFFING';
+            npc.pauseTimer = 0;
+            npc.pauseMax = 1 + Math.random();
+          } else {
+            if (!npcStartMove(npc, npc.burstDir, 150)) {
+              npc.state = 'SNIFFING';
+              npc.pauseTimer = 0;
+              npc.pauseMax = 1 + Math.random();
+            } else {
+              npc.burstRemaining--;
+            }
+          }
+        }
+        npcUpdateMove(npc, dt, 150);
+      } else if (npc.state === 'SNIFFING') {
+        npc.pauseTimer += dt;
+        if (npc.pauseTimer >= npc.pauseMax) {
+          // New burst with weighted direction
+          const r = Math.random();
+          let dir = npc.facing;
+          if (r > 0.6) {
+            const turns = npc.facing === 'east' || npc.facing === 'west'
+              ? ['north','south'] : ['east','west'];
+            dir = turns[Math.floor(Math.random() * 2)];
+          }
+          npc.burstDir = dir;
+          npc.burstRemaining = 2 + Math.floor(Math.random() * 2);
+          npc.state = 'TROTTING';
+        }
+      } else if (npc.state === 'FOLLOWING') {
+        // Follow behind player
+        if (!npc.moving && player.state === 'WALKING') {
+          // Move to player's previous tile
+          const dir = dirToward(npc.tileX, npc.tileY, player.moveFromX, player.moveFromY);
+          if (npc.tileX !== player.moveFromX || npc.tileY !== player.moveFromY) {
+            npcStartMove(npc, dir, 200);
+          }
+          npc.followCounter--;
+          if (npc.followCounter <= 0) {
+            npc.state = 'RETURNING';
+          }
+        }
+        npcUpdateMove(npc, dt, 200);
+        // Tail wag continues in FOLLOWING (handled in draw)
+      } else if (npc.state === 'RETURNING') {
+        if (!npc.moving) {
+          if (npc.tileX === npc.spawnX && npc.tileY === npc.spawnY) {
+            npc.state = 'SNIFFING';
+            npc.pauseTimer = 0;
+            npc.pauseMax = 1.5;
+          } else {
+            // Direct return: horizontal first, then vertical
+            let dir;
+            if (npc.tileX !== npc.spawnX) dir = npc.tileX < npc.spawnX ? 'east' : 'west';
+            else dir = npc.tileY < npc.spawnY ? 'south' : 'north';
+            if (!npcStartMove(npc, dir, 150)) {
+              // Try other axis
+              if (npc.tileY !== npc.spawnY) dir = npc.tileY < npc.spawnY ? 'south' : 'north';
+              else dir = npc.tileX < npc.spawnX ? 'east' : 'west';
+              npcStartMove(npc, dir, 150);
+            }
+          }
+        }
+        npcUpdateMove(npc, dt, 150);
+      }
+      break;
+    }
+  }
+}
+
+// ── NPC Interaction trigger ──
+function triggerNPCInteraction(npc) {
+  if (npc.interacting) return;
+  if (npc.type === 'dog' && npc.state === 'RETURNING') return; // Can't interact while returning
+
+  npc.interacting = true;
+  npc.storedFacing = npc.facing;
+  // Face toward player
+  npc.facing = dirToward(npc.tileX, npc.tileY, player.tileX, player.tileY);
+
+  // Type-specific interaction entry
+  if (npc.type === 'elder') {
+    npc.coreSpeed = 1; // faster pulse during interaction
+  }
+  if (npc.type === 'dog' && npc.state === 'SNIFFING') {
+    // Show emote
+    showEmote(npc);
+  }
+}
+
+function endNPCInteraction(npc) {
+  npc.interacting = false;
+
+  // Type-specific exit
+  if (npc.type === 'worker') {
+    npc.facing = npc.origFacing; // restore original facing
+  } else if (npc.type === 'scout') {
+    // Resume patrol state
+    npc.facing = npc.storedFacing;
+  } else if (npc.type === 'elder') {
+    // Reset rotation from current facing (toward player)
+    npc.rotationStart = npc.facing;
+    npc.rotationTimer = 0;
+    npc.coreSpeed = 3;
+    npc.state = 'SURVEYING';
+  } else if (npc.type === 'farmer') {
+    npc.facing = npc.origFacing;
+  } else if (npc.type === 'mechanic') {
+    npc.facing = npc.config.patrolling ? npc.storedFacing : 'north';
+  } else if (npc.type === 'child') {
+    npc.state = 'PAUSED';
+    npc.pauseTimer = 0;
+    npc.pauseMax = 1 + Math.random();
+  } else if (npc.type === 'dog') {
+    // Enter FOLLOWING
+    npc.state = 'FOLLOWING';
+    npc.followCounter = 10 + Math.floor(Math.random() * 6);
+  }
+}
+
+// ── Emote system ──
+let emoteNPC = null;
+function showEmote(npc) {
+  emoteNPC = npc;
+  emoteEl.textContent = '♥';
+  emoteEl.classList.add('show');
+  setTimeout(() => { emoteEl.classList.remove('show'); emoteNPC = null; }, 1500);
+}
+
+// ══════════════════════════════════════════════════════
+// NPC DRAWING
+// ══════════════════════════════════════════════════════
+function drawNPC(npc, sx, sy) {
+  const f=npc.facing, wf=npc.walkFrame, t=Date.now();
+
+  switch(npc.type) {
+    case 'worker': {
+      const hx=4,hy=1;
+      gr(sx,sy,hx+1,hy,6,1,S3);gr(sx,sy,hx,hy+1,8,6,AC2);
+      gp(sx,sy,hx,hy+1,AC0);gp(sx,sy,hx+1,hy+1,AC0);
+      // Visor blink: 2s cycle
+      const visorOn = Math.sin(t / 1000 + npc.tileX) > -0.8;
+      gr(sx,sy,hx+2,hy+2,3,2, visorOn ? S3 : S2);
+      gr(sx,sy,hx+1,hy+6,6,1,S3);
+      gr(sx,sy,3,hy+7,10,4,AC2);gr(sx,sy,3,hy+9,10,1,S3);
+      gp(sx,sy,8,hy+8,CORE2);
+      gr(sx,sy,5,hy+11,2,4,AC2);gr(sx,sy,8,hy+11,2,4,AC2);
+      break;
+    }
+    case 'scout': {
+      const hx=4,hy=0;
+      gp(sx,sy,hx+2,hy,AC0);gp(sx,sy,hx+5,hy,AC0);
+      gr(sx,sy,hx+1,hy+1,6,1,S3);gr(sx,sy,hx,hy+2,8,5,AC1);
+      gp(sx,sy,hx,hy+2,AC0);
+      gr(sx,sy,hx+1,hy+3,6,2,S3);
+      // Visor focal points: staggered scan blink when PAUSED, both on when interacting
+      if (npc.interacting) {
+        gp(sx,sy,hx+2,hy+4,S0);gp(sx,sy,hx+5,hy+4,S0);
+      } else if (npc.state === 'PAUSED') {
+        const scan = (t % 500) / 500;
+        gp(sx,sy,hx+2,hy+4, scan < 0.5 ? S0 : S2);
+        gp(sx,sy,hx+5,hy+4, scan >= 0.25 && scan < 0.75 ? S0 : S2);
+      } else {
+        gp(sx,sy,hx+2,hy+4,S0);gp(sx,sy,hx+5,hy+4,S0);
+      }
+      const tx=5,ty=hy+7;
+      gr(sx,sy,tx,ty,5,4,AC1);gr(sx,sy,tx,ty+2,5,1,S3);gp(sx,sy,tx+2,ty+1,CORE0);
+      const st=npc.moving?(wf===0?1:-1):0;
+      gr(sx,sy,tx+1,ty+4+st,2,5,AC2);gr(sx,sy,tx+3,ty+4-st,2,5,AC2);
+      break;
+    }
+    case 'elder': {
+      const hx=3,hy=0;
+      gr(sx,sy,hx,hy,10,1,S3);gr(sx,sy,hx-1,hy+1,12,7,AC1);
+      gr(sx,sy,hx,hy+2,10,2,AV);gr(sx,sy,hx,hy+1,1,3,AV);gr(sx,sy,hx+9,hy+1,1,3,AV);
+      gp(sx,sy,hx+4,hy+3,AV_H);gp(sx,sy,hx,hy+1,AC0);gp(sx,sy,hx+1,hy,AC0);
+      const tx=5,ty=hy+8;
+      gr(sx,sy,tx,ty,6,4,S2);gr(sx,sy,tx,ty+2,6,1,S3);
+      // 2x2 core with pulse
+      const pulse = Math.sin(t / (npc.coreSpeed * 500)) > 0;
+      gr(sx,sy,tx+2,ty,2,2, pulse ? S0 : S1);
+      gr(sx,sy,tx+1,ty+4,2,3,AC2);gr(sx,sy,tx+3,ty+4,2,3,AC2);
+      break;
+    }
+    case 'farmer': {
+      const hx=4,hy=1;
+      gr(sx,sy,hx-1,hy,10,2,PT2);gr(sx,sy,hx+1,hy-1,6,2,PT2);
+      gr(sx,sy,hx+1,hy+2,6,4,SK0);
+      gp(sx,sy,hx+2,hy+4,S3);gp(sx,sy,hx+5,hy+4,S3);gp(sx,sy,hx+4,hy+5,S3);
+      gr(sx,sy,hx,hy+6,8,5,HB1);gr(sx,sy,hx+2,hy+6,4,2,HB0);
+      const st=npc.moving?(wf===0?1:-1):0;
+      gr(sx,sy,hx+1,hy+11+st,3,3,HB2);gr(sx,sy,hx+4,hy+11-st,3,3,HB2);
+      gr(sx,sy,hx+8,hy+3,1,6,TK2);gp(sx,sy,hx+7,hy+3,TK2);gp(sx,sy,hx+9,hy+3,TK2);
+      break;
+    }
+    case 'mechanic': {
+      const hx=5,hy=1;
+      gp(sx,sy,hx+1,hy-1,HA2);gp(sx,sy,hx+3,hy-2,HA2);gp(sx,sy,hx+5,hy-1,HA2);gp(sx,sy,hx+2,hy-1,HA2);
+      gr(sx,sy,hx,hy,7,5,SK0);
+      gp(sx,sy,hx+1,hy+2,S3);gp(sx,sy,hx+4,hy+2,S3);gp(sx,sy,hx+3,hy+3,S3);
+      gr(sx,sy,hx-1,hy+5,9,6,HA1);gp(sx,sy,hx+1,hy+6,CORE0);
+      // Working animation: right arm position
+      if (npc.state === 'WORKING' && !npc.interacting) {
+        const armUp = npc.workFrame === 1;
+        gr(sx,sy,hx+7,hy+5+(armUp?-2:0),2,3,HA1);
+      }
+      const st=npc.moving?(wf===0?1:-1):0;
+      gr(sx,sy,hx,hy+11+st,3,3,HA2);gr(sx,sy,hx+4,hy+11-st,3,3,HA2);
+      break;
+    }
+    case 'child': {
+      // Vertical bounce when running
+      const bounce = npc.moving ? Math.abs(Math.sin(t/60))*2 : 0;
+      const hx=5,hy=3-bounce;
+      gr(sx,sy,hx,hy,7,2,HA1);gr(sx,sy,hx-1,hy+1,9,1,HA1);
+      gr(sx,sy,hx,hy+2,7,4,SK0);
+      gp(sx,sy,hx+1,hy+3,S3);gp(sx,sy,hx+5,hy+3,S3);gp(sx,sy,hx+3,hy+4,S3);
+      gr(sx,sy,hx+1,hy+6,5,3,HB0);
+      // Child head-turn in PAUSED state
+      if (npc.state === 'PAUSED' && !npc.interacting) {
+        const headPhase = Math.floor(t / 500) % 4;
+        if (headPhase === 1) { // looking left
+          gp(sx,sy,hx,hy+3,S3);gp(sx,sy,hx+4,hy+3,S3);
+        } else if (headPhase === 3) { // looking right
+          gp(sx,sy,hx+2,hy+3,S3);gp(sx,sy,hx+6,hy+3,S3);
+        }
+      }
+      const st=npc.moving?(wf===0?1:-1):0;
+      gr(sx,sy,hx+1,hy+9+st,2,2,HB2);gr(sx,sy,hx+4,hy+9-st,2,2,HB2);
+      break;
+    }
+    case 'dog': {
+      const dy=8;
+      const fR=(f==='east'||f==='south');
+      gr(sx,sy,4,dy+2,8,4,DG1);
+      const headX=fR?11:1;
+      gr(sx,sy,headX,dy+1,3,4,DG0);
+      gr(sx,sy,fR?14:0,dy+2,2,2,DG0);gp(sx,sy,fR?15:0,dy+2,S3);
+      gp(sx,sy,headX+1,dy,DG2);gp(sx,sy,headX+1,dy-1,DG2);
+      gp(sx,sy,fR?13:2,dy+2,S3);
+      // Head dip when sniffing
+      const headDip = (npc.state === 'SNIFFING' && !npc.interacting) ? 1 : 0;
+      if (headDip) {
+        gr(sx,sy,headX,dy+1+headDip,3,3,DG0);
+        gp(sx,sy,fR?13:2,dy+2+headDip,S3);
+      }
+      // Legs (paired trot)
+      const tr=npc.moving?(wf===0?1:-1):0;
+      gr(sx,sy,5+tr,dy+6,1,2,DG1);gr(sx,sy,7+tr,dy+6,1,2,DG1);
+      gr(sx,sy,9-tr,dy+6,1,2,DG1);gr(sx,sy,11-tr,dy+6,1,2,DG1);
+      // Tail wag (active in SNIFFING, FOLLOWING, INTERACTING)
+      const tailWag = (npc.state==='SNIFFING'||npc.state==='FOLLOWING'||npc.interacting);
+      const tw = tailWag ? (Math.sin(t/250) > 0 ? -1 : 0) : 0;
+      const tailX=fR?2:13;
+      gp(sx,sy,tailX,dy+tw,DG2);gp(sx,sy,tailX+(fR?-1:1),dy-1+tw,DG2);
+      break;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// PATHFINDING
+// ══════════════════════════════════════════════════════
+function findPath(sx,sy,ex,ey){
+  sx=Math.round(sx);sy=Math.round(sy);ex=Math.round(ex);ey=Math.round(ey);
+  if(!isWalkable(ex,ey)){
+    let best=null,bd=Infinity;
+    for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++)
+      if(isWalkable(ex+dx,ey+dy)){const d=dx*dx+dy*dy;if(d<bd){bd=d;best={x:ex+dx,y:ey+dy}}}
+    if(!best)return[];ex=best.x;ey=best.y;
+  }
+  const key=(x,y)=>`${x},${y}`;
+  const open=[{x:sx,y:sy,g:0,h:0,f:0,parent:null}],closed=new Set(),gM={};gM[key(sx,sy)]=0;
+  const h=(x,y)=>Math.abs(x-ex)+Math.abs(y-ey);
+  let it=0;
+  while(open.length>0&&it<3000){
+    it++;open.sort((a,b)=>a.f-b.f);const c=open.shift();
+    if(c.x===ex&&c.y===ey){const p=[];let n=c;while(n){p.unshift({x:n.x,y:n.y});n=n.parent}return p}
+    closed.add(key(c.x,c.y));
+    for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]){
+      const nx=c.x+dx,ny=c.y+dy;
+      if(closed.has(key(nx,ny))||!isWalkable(nx,ny))continue;
+      const g=c.g+1;if(gM[key(nx,ny)]!==undefined&&g>=gM[key(nx,ny)])continue;
+      gM[key(nx,ny)]=g;open.push({x:nx,y:ny,g,h:h(nx,ny),f:g+h(nx,ny),parent:c});
+    }
+  }
+  return[];
+}
+
+// ══════════════════════════════════════════════════════
+// INPUT (click-to-move with tile-step locking)
+// ══════════════════════════════════════════════════════
+let targetPath = [];
+let targetIndex = 0;
+let clickMarker = null;
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const camX = player.renderX * TS - W/2 + TS/2;
+  const camY = player.renderY * TS - H/2 + TS/2;
+  const tileX = Math.floor((mx + camX) / TS);
+  const tileY = Math.floor((my + camY) / TS);
+
+  // Check if clicking adjacent NPC while idle
+  if (player.state === 'IDLE') {
+    const adj = isTileOccupiedByNPC(tileX, tileY, null);
+    if (adj && Math.abs(tileX - player.tileX) + Math.abs(tileY - player.tileY) === 1) {
+      // Trigger interaction
+      player.facing = dirToward(player.tileX, player.tileY, tileX, tileY);
+      player.state = 'INTERACTING';
+      player.interactTarget = adj;
+      player.interactArmTimer = 0.2; // 200ms arm raise
+      triggerNPCInteraction(adj);
+      return;
+    }
+  }
+
+  const path = findPath(player.tileX, player.tileY, tileX, tileY);
+  if (path.length > 1) {
+    targetPath = path;
+    targetIndex = 1;
+    clickMarker = { x: tileX, y: tileY, time: Date.now() };
+    hintEl.style.display = 'none';
+
+    // Start first step if idle
+    if (player.state === 'IDLE') {
+      const next = targetPath[targetIndex];
+      const dir = dirToward(player.tileX, player.tileY, next.x, next.y);
+      playerStartMove(dir);
+    }
+  }
+});
+
+// ── WASD Keyboard Movement ──
+const keysDown = {};
+window.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (['w','a','s','d',' '].includes(k)) e.preventDefault();
+  keysDown[k] = true;
+
+  // Spacebar: action button / scan pulse
+  if (k === ' ' && player.state === 'IDLE') {
+    // Check for adjacent NPC in facing direction
+    const d = DIR[player.facing];
+    const fx = player.tileX + d.dx, fy = player.tileY + d.dy;
+    const adj = isTileOccupiedByNPC(fx, fy, null);
+    if (adj) {
+      // Interact
+      player.state = 'INTERACTING';
+      player.interactTarget = adj;
+      player.interactArmTimer = 0.2;
+      triggerNPCInteraction(adj);
+    } else {
+      // Scan pulse
+      triggerScanPulse();
+    }
+  }
+});
+window.addEventListener('keyup', (e) => { keysDown[e.key.toLowerCase()] = false; });
+
+function getWASDDirection() {
+  if (keysDown['w']) return 'north';
+  if (keysDown['s']) return 'south';
+  if (keysDown['a']) return 'west';
+  if (keysDown['d']) return 'east';
+  return null;
+}
+
+// ── Scan Pulse System ──
+let scanPulse = null;
+const SCAN_COOLDOWN = 1.5; // seconds
+let scanCooldownTimer = 0;
+
+function triggerScanPulse() {
+  if (scanCooldownTimer > 0) return;
+  scanPulse = {
+    x: player.tileX, y: player.tileY,
+    time: Date.now(),
+    radius: 0,
+    maxRadius: 6 * TS, // 6 tiles radius
+    duration: 800, // ms
+  };
+  scanCooldownTimer = SCAN_COOLDOWN;
+  // Brief visor flash on player
+  player.idleCoreOn = true;
+  player.idleTimer = 0;
+}
+
+// ══════════════════════════════════════════════════════
+// GAME LOOP
+// ══════════════════════════════════════════════════════
+let lastTime = 0;
+
+function update(dt) {
+  // Scan cooldown
+  if (scanCooldownTimer > 0) scanCooldownTimer -= dt;
+
+  // ── Player State Machine ──
+  switch (player.state) {
+    case 'IDLE': {
+      player.idleTimer += dt;
+      player.walkFrame = 0;
+      player.idleCoreOn = player.idleTimer > 3 ? Math.sin(Date.now() / 750) > 0 : true;
+      player.renderX = player.tileX;
+      player.renderY = player.tileY;
+
+      // Check WASD input for movement
+      const wasdDir = getWASDDirection();
+      if (wasdDir) {
+        targetPath = []; // cancel any click path
+        hintEl.style.display = 'none';
+        playerStartMove(wasdDir);
+      }
+      break;
+    }
+    case 'WALKING': {
+      player.moveProgress += (dt * 1000) / player.moveSpeed;
+      if (player.moveProgress >= 1) {
+        // Tile translation complete
+        player.tileX = player.moveToX;
+        player.tileY = player.moveToY;
+        player.renderX = player.tileX;
+        player.renderY = player.tileY;
+        player.moveProgress = 0;
+
+        // Check for next step in path
+        if (targetPath.length > 0 && targetIndex < targetPath.length) {
+          targetIndex++;
+          if (targetIndex < targetPath.length) {
+            const next = targetPath[targetIndex];
+            // Check if NPC is on next tile (interaction opportunity)
+            const npcOnNext = isTileOccupiedByNPC(next.x, next.y, null);
+            if (npcOnNext) {
+              // Walk up to NPC, trigger interaction
+              player.facing = dirToward(player.tileX, player.tileY, next.x, next.y);
+              player.state = 'INTERACTING';
+              player.interactTarget = npcOnNext;
+              player.interactArmTimer = 0.2;
+              triggerNPCInteraction(npcOnNext);
+              targetPath = [];
+            } else {
+              const dir = dirToward(player.tileX, player.tileY, next.x, next.y);
+              playerStartMove(dir);
+            }
+          } else {
+            // Path complete - check for held WASD
+            const wasdCont = getWASDDirection();
+            if (wasdCont) {
+              targetPath = [];
+              playerStartMove(wasdCont);
+            } else {
+              player.state = 'IDLE';
+              player.idleTimer = 0;
+              targetPath = [];
+            }
+          }
+        } else {
+          // No click-path, check WASD continuation
+          const wasdCont = getWASDDirection();
+          if (wasdCont) {
+            playerStartMove(wasdCont);
+          } else {
+            player.state = 'IDLE';
+            player.idleTimer = 0;
+          }
+        }
+      } else {
+        // Interpolate
+        player.renderX = player.moveFromX + (player.moveToX - player.moveFromX) * player.moveProgress;
+        player.renderY = player.moveFromY + (player.moveToY - player.moveFromY) * player.moveProgress;
+        // Walk frame
+        player.walkTimer += dt;
+        if (player.walkTimer > 0.1) {
+          player.walkFrame = 1 - player.walkFrame;
+          player.walkTimer = 0;
+        }
+      }
+      player.idleTimer = 0;
+      break;
+    }
+    case 'BLOCKED': {
+      player.bumpProgress += dt;
+      if (player.bumpProgress >= 0.1) {
+        player.state = 'IDLE';
+        player.idleTimer = 0;
+        player.renderX = player.tileX;
+        player.renderY = player.tileY;
+        targetPath = [];
+      } else {
+        // Bump: shift 2px forward then back
+        const d = DIR[player.bumpDir];
+        const phase = player.bumpProgress < 0.05 ? player.bumpProgress / 0.05 : (0.1 - player.bumpProgress) / 0.05;
+        const shift = phase * 2 / TILE; // 2 game-pixels of shift
+        player.renderX = player.tileX + d.dx * shift;
+        player.renderY = player.tileY + d.dy * shift;
+      }
+      break;
+    }
+    case 'INTERACTING': {
+      player.interactArmTimer -= dt;
+      player.renderX = player.tileX;
+      player.renderY = player.tileY;
+
+      // Auto-end interaction after a delay (since we have no dialogue system yet)
+      if (player.interactArmTimer < -1.5) {
+        if (player.interactTarget) {
+          endNPCInteraction(player.interactTarget);
+        }
+        player.interactTarget = null;
+        player.state = 'IDLE';
+        player.idleTimer = 0;
+      }
+      break;
+    }
+  }
+
+  // ── Update all NPCs ──
+  for (const npc of npcs) updateNPC(npc, dt);
+
+  // ── Emote positioning ──
+  if (emoteNPC) {
+    const camX = player.renderX * TS - W/2 + TS/2;
+    const camY = player.renderY * TS - H/2 + TS/2;
+    const ex = emoteNPC.renderX * TS - camX + TS/2 - 12;
+    const ey = emoteNPC.renderY * TS - camY - 20;
+    emoteEl.style.left = ex + 'px';
+    emoteEl.style.top = ey + 'px';
+  }
+}
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+  const camX = player.renderX * TS - W/2 + TS/2;
+  const camY = player.renderY * TS - H/2 + TS/2;
+  const startCol = Math.floor(camX / TS), startRow = Math.floor(camY / TS);
+
+  // Tiles
+  for (let r = -1; r < ROWS; r++) for (let c = -1; c < COLS; c++) {
+    const wx = startCol + c, wy = startRow + r;
+    const sx = Math.floor(wx * TS - camX), sy = Math.floor(wy * TS - camY);
+    if (wx < 0 || wy < 0 || wx >= MW || wy >= MH) {
+      ctx.fillStyle = TR2; ctx.fillRect(sx, sy, TS, TS);
+      gr(sx, sy, 3, 4, 5, 4, TR1); gr(sx, sy, 8, 2, 4, 6, TR1);
+    } else drawTile(wx, wy, map[wy][wx], sx, sy);
+  }
+
+  // Factory sign - "ROBOTS" across front wall (row 3, columns 2-7)
+  {
+    const signY = 3, signX = 2;
+    const sx = Math.floor(signX * TS - camX);
+    const sy = Math.floor(signY * TS - camY);
+    // Sign board background (spans 6 tiles wide, centered vertically in tile)
+    const boardX = sx + PX * 1;
+    const boardY = sy + PX * 4;
+    const boardW = 6 * TS - PX * 2;
+    const boardH = PX * 8;
+    ctx.fillStyle = FC2;
+    ctx.fillRect(boardX, boardY, boardW, boardH);
+    ctx.fillStyle = MT0;
+    ctx.fillRect(boardX + PX, boardY + PX, boardW - PX*2, boardH - PX*2);
+    // Text
+    ctx.font = `${PX * 5}px "Press Start 2P", monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = FC2;
+    ctx.fillText('ROBOTS', boardX + boardW/2, boardY + boardH - PX*2);
+    ctx.textAlign = 'left';
+  }
+
+  // Click marker
+  if (clickMarker) {
+    const age = (Date.now() - clickMarker.time) / 1000;
+    if (age < 1) {
+      const mx = clickMarker.x * TS - camX + TS/2, my = clickMarker.y * TS - camY + TS/2;
+      ctx.strokeStyle = `rgba(212,160,48,${1-age})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(mx, my, PX*3 + age*PX*8, 0, Math.PI*2); ctx.stroke();
+    } else clickMarker = null;
+  }
+
+  // Path preview
+  if (player.state === 'WALKING' && targetPath.length > 0) {
+    ctx.fillStyle = 'rgba(212,160,48,0.2)';
+    for (let i = targetIndex; i < targetPath.length; i++) {
+      const px = targetPath[i].x * TS - camX + TS/2, py = targetPath[i].y * TS - camY + TS/2;
+      ctx.fillRect(px - PX/2, py - PX/2, PX, PX);
+    }
+  }
+
+  // Scan pulse effect
+  if (scanPulse) {
+    const age = (Date.now() - scanPulse.time) / scanPulse.duration;
+    if (age >= 1) {
+      scanPulse = null;
+    } else {
+      const cx = scanPulse.x * TS - camX + TS/2;
+      const cy = scanPulse.y * TS - camY + TS/2;
+      const radius = age * scanPulse.maxRadius;
+      const alpha = (1 - age) * 0.6;
+
+      // Outer ring
+      ctx.strokeStyle = `rgba(232,192,64,${alpha})`;
+      ctx.lineWidth = PX * 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Inner glow ring
+      ctx.strokeStyle = `rgba(232,192,64,${alpha * 0.3})`;
+      ctx.lineWidth = PX * 6;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.85, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Highlight NPCs within scan radius and trigger labels
+      for (const npc of npcs) {
+        const nx = npc.renderX * TS - camX + TS/2;
+        const ny = npc.renderY * TS - camY + TS/2;
+        const dist = Math.sqrt((nx-cx)*(nx-cx) + (ny-cy)*(ny-cy));
+        if (dist < radius && dist > radius - TS * 2) {
+          // Diamond highlight
+          ctx.strokeStyle = `rgba(232,192,64,${alpha * 0.8})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(nx, ny - TS/2); ctx.lineTo(nx + TS/2, ny);
+          ctx.lineTo(nx, ny + TS/2); ctx.lineTo(nx - TS/2, ny);
+          ctx.closePath();
+          ctx.stroke();
+          // Trigger persistent label if not already showing
+          if (!scanLabels.find(s => s.npc === npc)) {
+            scanLabels.push({ npc, timer: 2.0 }); // 2 seconds visible
+          }
+        }
+      }
+    }
+  }
+
+  // Draw persistent scan labels above NPCs
+  for (let i = scanLabels.length - 1; i >= 0; i--) {
+    const sl = scanLabels[i];
+    sl.timer -= 1/60; // approximate dt
+    if (sl.timer <= 0) { scanLabels.splice(i, 1); continue; }
+    const fadeAlpha = Math.min(1, sl.timer / 0.5); // fade out in last 0.5s
+    const nx = sl.npc.renderX * TS - camX + TS/2;
+    const ny = sl.npc.renderY * TS - camY - 4;
+    const label = sl.npc.scanLabel || sl.npc.type.toUpperCase();
+    ctx.font = `${PX * 3}px "Press Start 2P", monospace`;
+    ctx.textAlign = 'center';
+    // Background pill
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = `rgba(26,21,16,${fadeAlpha * 0.85})`;
+    ctx.fillRect(nx - tw/2 - 4, ny - PX*3 - 2, tw + 8, PX*3 + 4);
+    // Text
+    ctx.fillStyle = `rgba(232,192,64,${fadeAlpha})`;
+    ctx.fillText(label, nx, ny);
+    ctx.textAlign = 'left';
+  }
+
+  // Entities sorted by Y for overlap
+  const entities = [];
+  entities.push({ y: player.renderY, draw: () => {
+    const sx = Math.floor(player.renderX * TS - camX);
+    const sy = Math.floor(player.renderY * TS - camY);
+    const isInteractArm = player.state === 'INTERACTING' && player.interactArmTimer > 0;
+    drawUnit01(sx, sy, player.facing, player.walkFrame,
+      player.state === 'WALKING', player.idleCoreOn, isInteractArm);
+  }});
+  for (const npc of npcs) {
+    entities.push({ y: npc.renderY, draw: () => {
+      const sx = Math.floor(npc.renderX * TS - camX);
+      const sy = Math.floor(npc.renderY * TS - camY);
+      drawNPC(npc, sx, sy);
+    }});
+  }
+  entities.sort((a, b) => a.y - b.y);
+  for (const e of entities) e.draw();
+
+  coordsEl.textContent = `${player.tileX}, ${player.tileY}`;
+}
+
+function gameLoop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.1);
+  lastTime = ts;
+  update(dt);
+  render();
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame((t) => { lastTime = t; gameLoop(t); });
+</script>
+</body>
+</html>
