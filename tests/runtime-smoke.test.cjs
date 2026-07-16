@@ -137,12 +137,20 @@ test('runtime initializes and renders a frame', async () => {
     discoveredNPCs.add('OVERSEER');
     const cancelled = requestQuestReset(() => false);
     const retained = fragment.collected && discoveredNPCs.has('OVERSEER');
+    scanPulse = { elapsed: 0 };
+    scanLabels.push({ npc: npcs[0], timer: 2 });
     const accepted = requestQuestReset(() => true);
-    ({ cancelled, retained, accepted, cleared: !fragment.collected && discoveredNPCs.size === 0 });
+    ({
+      cancelled,
+      retained,
+      accepted,
+      cleared: !fragment.collected && discoveredNPCs.size === 0,
+      scanCleared: scanPulse === null && scanLabels.length === 0,
+    });
   `, sandbox);
   assert.deepEqual(
     { ...resetBehavior },
-    { cancelled: false, retained: true, accepted: true, cleared: true },
+    { cancelled: false, retained: true, accepted: true, cleared: true, scanCleared: true },
   );
 
   const completion = vm.runInContext(`
