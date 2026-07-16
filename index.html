@@ -18,6 +18,7 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
 #title-bar .dot{width:8px;height:8px;background:#D4A030;border-radius:50%;animation:blink 1.6s ease-in-out infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
 #hint{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);font-family:'Silkscreen',monospace;font-size:11px;color:#D4A030;opacity:0.6;pointer-events:none;z-index:10;text-shadow:1px 1px 0px #6B4820;animation:fadeHint 4s ease-in-out infinite}
+#hint.status-hidden{visibility:hidden}
 @keyframes fadeHint{0%,100%{opacity:0.6}50%{opacity:0.2}}
 #controls{position:absolute;bottom:20px;left:20px;pointer-events:none;z-index:10;font-family:'Silkscreen',monospace;font-size:9px;color:#8A9870;line-height:1.8;text-shadow:1px 1px 0px #1a1510;opacity:0.7}
 #controls .key{display:inline-block;background:rgba(90,136,72,0.15);border:1px solid rgba(90,136,72,0.3);border-radius:3px;padding:1px 5px;font-family:'Press Start 2P',monospace;font-size:7px;color:#A8C088;margin-right:4px;vertical-align:middle}
@@ -39,6 +40,9 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
   #hint{bottom:max(88px,calc(68px + env(safe-area-inset-bottom)));width:70vw;font-size:10px;text-align:center}
   #action-button{display:block}
   #status{bottom:max(84px,calc(64px + env(safe-area-inset-bottom)));font-size:10px}
+}
+@media(hover:none),(pointer:coarse){
+  #action-button{display:block}
 }
 @media(prefers-reduced-motion:reduce){
   #title-bar .dot,#hint{animation:none}
@@ -880,6 +884,7 @@ let statusTimer = 0;
 function showStatus(message, duration = 1.5) {
   statusEl.textContent = message;
   statusEl.classList.add('show');
+  hintEl.classList.add('status-hidden');
   statusTimer = duration;
 }
 
@@ -931,7 +936,10 @@ function update(dt) {
   if (scanCooldownTimer > 0) scanCooldownTimer -= dt;
   if (statusTimer > 0) {
     statusTimer -= dt;
-    if (statusTimer <= 0) statusEl.classList.remove('show');
+    if (statusTimer <= 0) {
+      statusEl.classList.remove('show');
+      hintEl.classList.remove('status-hidden');
+    }
   }
 
   // ── Player State Machine ──
