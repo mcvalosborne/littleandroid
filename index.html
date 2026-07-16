@@ -1022,6 +1022,16 @@ function resetQuest() {
   showStatus('SIGNAL SEARCH RESTARTED', 2);
 }
 
+function requestQuestReset(confirmReset) {
+  const message = 'Restart the journey? Recovered signals and the resident log will be cleared.';
+  const confirmed = typeof confirmReset === 'function' ?
+    confirmReset(message) :
+    typeof window.confirm === 'function' && window.confirm(message);
+  if (!confirmed) return false;
+  resetQuest();
+  return true;
+}
+
 function performAction() {
   if (player.state !== 'IDLE') return;
   const adjacentFragment = getFacingFragment();
@@ -1038,7 +1048,7 @@ actionButton.addEventListener('click', () => {
   canvas.focus({ preventScroll: true });
   performAction();
 });
-questResetButton.addEventListener('click', resetQuest);
+questResetButton.addEventListener('click', () => requestQuestReset());
 journalButton.addEventListener('click', () => {
   updateJournal();
   journalDialog.showModal();

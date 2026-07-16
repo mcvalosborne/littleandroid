@@ -115,6 +115,18 @@ test('runtime initializes and renders a frame', () => {
     { discovered: true, blocked: 'BLOCKED', collected: true },
   );
 
+  const resetBehavior = vm.runInContext(`
+    discoveredNPCs.add('OVERSEER');
+    const cancelled = requestQuestReset(() => false);
+    const retained = fragment.collected && discoveredNPCs.has('OVERSEER');
+    const accepted = requestQuestReset(() => true);
+    ({ cancelled, retained, accepted, cleared: !fragment.collected && discoveredNPCs.size === 0 });
+  `, sandbox);
+  assert.deepEqual(
+    { ...resetBehavior },
+    { cancelled: false, retained: true, accepted: true, cleared: true },
+  );
+
   const completion = vm.runInContext(`
     for (const fragment of signalFragments) {
       fragment.discovered = true;
