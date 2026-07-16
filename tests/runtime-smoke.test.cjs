@@ -52,6 +52,7 @@ test('runtime initializes and renders a frame', () => {
     'journal-list': element(),
     'journal-close': element(),
   };
+  elements.game.focus = () => { listeners.canvasFocused = true; };
   const sandbox = {
     LittleAndroidLogic,
     LittleAndroidContent,
@@ -95,6 +96,8 @@ test('runtime initializes and renders a frame', () => {
     { ...keyboardTargets },
     { game: true, canvas: true, control: false },
   );
+  listeners.close();
+  assert.equal(listeners.canvasFocused, true);
 
   const retrieval = vm.runInContext(`
     const fragment = signalFragments[0];
@@ -143,11 +146,11 @@ test('runtime initializes and renders a frame', () => {
   const replay = vm.runInContext(`
     player.tileX = signalFragments[0].x;
     player.tileY = signalFragments[0].y;
-    const refused = resetQuest();
+    const replayRefused = resetQuest();
     player.tileX = 4;
     player.tileY = 6;
-    const accepted = resetQuest();
-    ({ refused, accepted, collected: signalFragments.filter(fragment => fragment.collected).length });
+    const replayAccepted = resetQuest();
+    ({ refused: replayRefused, accepted: replayAccepted, collected: signalFragments.filter(fragment => fragment.collected).length });
   `, sandbox);
   assert.deepEqual({ ...replay }, { refused: false, accepted: true, collected: 0 });
 });
