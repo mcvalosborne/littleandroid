@@ -41,6 +41,7 @@ test('progress normalizes lists and ignores unknown fields', () => {
   assert.deepEqual(parsed, {
     version: SAVE_VERSION,
     challengeDate: '2026-07-16',
+    generation: 0,
     discoveredFragments: ['a'],
     collectedFragments: ['a'],
     discoveredNPCs: ['scout'],
@@ -79,11 +80,14 @@ test('daily progress restores only for the matching challenge date', () => {
     complete: true,
   };
   assert.deepEqual(scopeProgressToChallenge(completed, '2026-07-15'), completed);
-  assert.deepEqual(scopeProgressToChallenge(completed, '2026-07-16'), {
+  const rolled = scopeProgressToChallenge(completed, '2026-07-16');
+  assert.deepEqual(rolled, {
     ...defaultProgress(),
     challengeDate: '2026-07-16',
+    generation: 1,
     discoveredNPCs: ['OVERSEER'],
   });
+  assert.deepEqual(mergeProgress(rolled, completed, ['field-coil']), rolled);
 });
 
 test('progress round-trips and clears through storage', () => {
@@ -106,10 +110,22 @@ test('progress merges monotonically across stale tabs', () => {
     ...defaultProgress(),
     discoveredNPCs: ['OVERSEER'],
   };
-  assert.deepEqual(mergeProgress(firstTab, staleTab), {
+  assert.deepEqual(mergeProgress(firstTab, staleTab, ['field-coil']), {
     ...defaultProgress(),
     discoveredFragments: ['field-coil'],
     collectedFragments: ['field-coil'],
     discoveredNPCs: ['OVERSEER'],
+    complete: true,
   });
+});
+
+test('a newer reset generation defeats stale tab writes', () => {
+  const reset = { ...defaultProgress(), generation: 2 };
+  const stale = {
+    ...defaultProgress(),
+    generation: 1,
+    collectedFragments: ['field-coil'],
+    complete: true,
+  };
+  assert.deepEqual(mergeProgress(reset, stale, ['field-coil']), reset);
 });

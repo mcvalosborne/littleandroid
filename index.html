@@ -191,19 +191,26 @@ const signalFragments = dailyChallenge.order.map(id => ({
 }));
 let progressStorage = null;
 try { progressStorage = window.localStorage; } catch {}
+const loadedProgress = LittleAndroidProgress.loadProgress(progressStorage);
 const savedProgress = LittleAndroidProgress.scopeProgressToChallenge(
-  LittleAndroidProgress.loadProgress(progressStorage),
+  loadedProgress,
   dailyChallenge.dateKey,
 );
+if (loadedProgress.challengeDate !== savedProgress.challengeDate) {
+  LittleAndroidProgress.saveProgress(progressStorage, savedProgress);
+}
 const feedback = LittleAndroidFeedback.createFeedbackController(window, progressStorage);
 const metrics = LittleAndroidEngagement.createLocalMetrics(progressStorage);
 metrics.increment('sessions');
+let progressGeneration = savedProgress.generation;
 for (const fragment of signalFragments) {
   fragment.discovered = savedProgress.discoveredFragments.includes(fragment.id);
   fragment.collected = savedProgress.collectedFragments.includes(fragment.id);
 }
 const discoveredNPCs = new Set(savedProgress.discoveredNPCs);
-const quest = { complete: savedProgress.complete };
+const quest = {
+  complete: savedProgress.complete || signalFragments.every(fragment => fragment.collected),
+};
 
 function isWalkable(tx,ty){
   if(tx<0||ty<0||tx>=MW||ty>=MH)return false;
@@ -998,6 +1005,7 @@ function currentProgress() {
   return {
     version: LittleAndroidProgress.SAVE_VERSION,
     challengeDate: dailyChallenge.dateKey,
+    generation: progressGeneration,
     discoveredFragments: signalFragments.filter(fragment => fragment.discovered).map(fragment => fragment.id),
     collectedFragments: signalFragments.filter(fragment => fragment.collected).map(fragment => fragment.id),
     discoveredNPCs: [...discoveredNPCs],
@@ -1006,12 +1014,26 @@ function currentProgress() {
 }
 
 function persistProgress() {
-  const latest = LittleAndroidProgress.scopeProgressToChallenge(
-    LittleAndroidProgress.loadProgress(progressStorage),
-    dailyChallenge.dateKey,
+  const stored = LittleAndroidProgress.loadProgress(progressStorage);
+  if (stored.challengeDate && stored.challengeDate !== dailyChallenge.dateKey) return false;
+  const latest = LittleAndroidProgress.scopeProgressToChallenge(stored, dailyChallenge.dateKey);
+  const merged = LittleAndroidProgress.mergeProgress(
+    latest,
+    currentProgress(),
+    signalFragments.map(fragment => fragment.id),
   );
-  const merged = LittleAndroidProgress.mergeProgress(latest, currentProgress());
+  progressGeneration = merged.generation;
+  for (const fragment of signalFragments) {
+    fragment.discovered = merged.discoveredFragments.includes(fragment.id);
+    fragment.collected = merged.collectedFragments.includes(fragment.id);
+  }
+  discoveredNPCs.clear();
+  for (const identity of merged.discoveredNPCs) discoveredNPCs.add(identity);
+  quest.complete = merged.complete;
+  document.body.classList.toggle('world-restored', quest.complete);
+  updateQuestUI();
   LittleAndroidProgress.saveProgress(progressStorage, merged);
+  return merged;
 }
 
 function rememberNPC(npc) {
@@ -1071,7 +1093,9 @@ function resetQuest() {
   discoveredNPCs.clear();
   quest.complete = false;
   document.body.classList.remove('world-restored');
-  LittleAndroidProgress.clearProgress(progressStorage);
+  const storedGeneration = LittleAndroidProgress.loadProgress(progressStorage).generation;
+  progressGeneration = Math.max(progressGeneration, storedGeneration) + 1;
+  LittleAndroidProgress.saveProgress(progressStorage, currentProgress());
   updateQuestUI();
   updateJournal();
   showStatus('SIGNAL SEARCH RESTARTED', 2);
@@ -1085,8 +1109,7 @@ function requestQuestReset(confirmReset) {
     confirmReset(message) :
     typeof window.confirm === 'function' && window.confirm(message);
   if (!confirmed) return false;
-  resetQuest();
-  return true;
+  return resetQuest();
 }
 
 function performAction() {
