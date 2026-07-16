@@ -8,6 +8,7 @@ const LittleAndroidLogic = require('../src/game-logic.js');
 const LittleAndroidContent = require('../src/game-content.js');
 const LittleAndroidProgress = require('../src/progress.js');
 const LittleAndroidFeedback = require('../src/feedback.js');
+const LittleAndroidEngagement = require('../src/engagement.js');
 
 function memoryStorage() {
   const values = new Map();
@@ -18,7 +19,7 @@ function memoryStorage() {
   };
 }
 
-test('runtime initializes and renders a frame', () => {
+test('runtime initializes and renders a frame', async () => {
   const html = fs.readFileSync('index.html', 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   const listeners = {};
@@ -53,6 +54,7 @@ test('runtime initializes and renders a frame', () => {
     'journal-list': element(),
     'journal-close': element(),
     'sound-button': element(),
+    'share-button': element(),
   };
   elements.game.focus = () => { listeners.canvasFocused = true; };
   const sandbox = {
@@ -60,6 +62,7 @@ test('runtime initializes and renders a frame', () => {
     LittleAndroidContent,
     LittleAndroidProgress,
     LittleAndroidFeedback,
+    LittleAndroidEngagement,
     console,
     Date,
     Math,
@@ -101,6 +104,12 @@ test('runtime initializes and renders a frame', () => {
   );
   listeners.close();
   assert.equal(listeners.canvasFocused, true);
+
+  sandbox.window.navigator = {
+    clipboard: { writeText: () => Promise.reject(new Error('denied')) },
+  };
+  await vm.runInContext('shareCompletion()', sandbox);
+  assert.match(elements.status.textContent, /I restored the Little Android factory/);
 
   const retrieval = vm.runInContext(`
     const fragment = signalFragments[0];
@@ -152,7 +161,7 @@ test('runtime initializes and renders a frame', () => {
     ({ complete: quest.complete, collected: signalFragments.filter(fragment => fragment.collected).length });
   `, sandbox);
   assert.deepEqual({ ...completion }, { complete: true, collected: 3 });
-  assert.equal(elements.quest.textContent, 'FACTORY ONLINE');
+  assert.match(elements.quest.textContent, /^FACTORY ONLINE · D\d{8}-\d{4}$/);
 
   const replay = vm.runInContext(`
     player.tileX = signalFragments[0].x;
@@ -164,6 +173,23 @@ test('runtime initializes and renders a frame', () => {
     ({ refused: replayRefused, accepted: replayAccepted, collected: signalFragments.filter(fragment => fragment.collected).length });
   `, sandbox);
   assert.deepEqual({ ...replay }, { refused: false, accepted: true, collected: 0 });
+
+  const staleDailyReset = vm.runInContext(`
+    const futureProgress = {
+      ...LittleAndroidProgress.loadProgress(window.localStorage),
+      challengeDate: '2099-01-01',
+      generation: progressGeneration + 1,
+      discoveredNPCs: ['FUTURE RESIDENT'],
+    };
+    LittleAndroidProgress.saveProgress(window.localStorage, futureProgress);
+    const resetAccepted = requestQuestReset(() => true);
+    const storedAfterReset = LittleAndroidProgress.loadProgress(window.localStorage);
+    ({ resetAccepted, date: storedAfterReset.challengeDate, residents: storedAfterReset.discoveredNPCs });
+  `, sandbox);
+  assert.deepEqual(
+    { ...staleDailyReset, residents: [...staleDailyReset.residents] },
+    { resetAccepted: false, date: '2099-01-01', residents: ['FUTURE RESIDENT'] },
+  );
 });
 
 test('NPC movement rejects a destination reserved earlier in the frame', () => {
@@ -178,9 +204,9 @@ test('NPC movement rejects a destination reserved earlier in the frame', () => {
     getBoundingClientRect: () => ({ left: 0, top: 0 }),
     addEventListener() {}, getContext: () => context2d,
   });
-  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element() };
+  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element(), 'share-button': element() };
   const sandbox = {
-    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, console, Date, Math, setTimeout, clearTimeout,
+    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, LittleAndroidEngagement, console, Date, Math, setTimeout, clearTimeout,
     document: { hidden: false, body: element(), getElementById: id => elements[id] },
     window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, localStorage: memoryStorage(), addEventListener() {} },
     requestAnimationFrame() {},
@@ -215,9 +241,9 @@ test('interaction waits for a moving NPC to finish its tile step', () => {
     getBoundingClientRect: () => ({ left: 0, top: 0 }), addEventListener() {},
     getContext: () => context2d,
   });
-  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element() };
+  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element(), 'share-button': element() };
   const sandbox = {
-    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, console, Date, Math, setTimeout, clearTimeout,
+    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, LittleAndroidEngagement, console, Date, Math, setTimeout, clearTimeout,
     document: { hidden: false, body: element(), getElementById: id => elements[id] },
     window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, localStorage: memoryStorage(), addEventListener() {} },
     requestAnimationFrame() {},

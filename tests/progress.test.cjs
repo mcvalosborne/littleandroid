@@ -4,9 +4,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   SAVE_KEY,
+  SAVE_VERSION,
   defaultProgress,
   parseProgress,
   loadProgress,
+  scopeProgressToChallenge,
   mergeProgress,
   saveProgress,
   clearProgress,
@@ -28,7 +30,8 @@ test('invalid and outdated saves reset safely', () => {
 
 test('progress normalizes lists and ignores unknown fields', () => {
   const parsed = parseProgress({
-    version: 1,
+    version: SAVE_VERSION,
+    challengeDate: '2026-07-16',
     discoveredFragments: ['a', 'a', 4],
     collectedFragments: ['a'],
     discoveredNPCs: ['scout'],
@@ -36,13 +39,55 @@ test('progress normalizes lists and ignores unknown fields', () => {
     injected: '<script>',
   });
   assert.deepEqual(parsed, {
-    version: 1,
+    version: SAVE_VERSION,
+    challengeDate: '2026-07-16',
     generation: 0,
     discoveredFragments: ['a'],
     collectedFragments: ['a'],
     discoveredNPCs: ['scout'],
     complete: true,
   });
+});
+
+test('version one saves migrate resident discoveries', () => {
+  const migrated = parseProgress({
+    version: 1,
+    discoveredFragments: ['field-coil'],
+    collectedFragments: ['field-coil'],
+    discoveredNPCs: ['OVERSEER'],
+    complete: true,
+  });
+  assert.deepEqual(migrated, {
+    ...defaultProgress(),
+    discoveredFragments: ['field-coil'],
+    collectedFragments: ['field-coil'],
+    discoveredNPCs: ['OVERSEER'],
+    complete: true,
+  });
+  assert.deepEqual(scopeProgressToChallenge(migrated, '2026-07-16'), {
+    ...migrated,
+    challengeDate: '2026-07-16',
+  });
+});
+
+test('daily progress restores only for the matching challenge date', () => {
+  const completed = {
+    ...defaultProgress(),
+    challengeDate: '2026-07-15',
+    discoveredFragments: ['field-coil'],
+    collectedFragments: ['field-coil'],
+    discoveredNPCs: ['OVERSEER'],
+    complete: true,
+  };
+  assert.deepEqual(scopeProgressToChallenge(completed, '2026-07-15'), completed);
+  const rolled = scopeProgressToChallenge(completed, '2026-07-16');
+  assert.deepEqual(rolled, {
+    ...defaultProgress(),
+    challengeDate: '2026-07-16',
+    generation: 1,
+    discoveredNPCs: ['OVERSEER'],
+  });
+  assert.deepEqual(mergeProgress(rolled, completed, ['field-coil']), rolled);
 });
 
 test('progress round-trips and clears through storage', () => {

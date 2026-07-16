@@ -54,6 +54,10 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep chan
 
 Codex review follows the repository rules in [AGENTS.md](AGENTS.md).
 
+## Privacy
+
+Gameplay progress, preferences, and aggregate engagement counters remain in the visitor's browser. See [PRIVACY.md](PRIVACY.md) for the exact local data and sharing behavior.
+
 ## License
 
 Source code and original project assets are available under the [MIT License](LICENSE).

@@ -35,6 +35,9 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
 #quest-reset{position:absolute;top:max(88px,calc(66px + env(safe-area-inset-top)));right:max(22px,env(safe-area-inset-right));z-index:20;display:none;width:34px;height:34px;border:1px solid #D4A030;border-radius:4px;background:rgba(10,10,10,.82);color:#E8C040;font:20px monospace;cursor:pointer}
 #quest-reset.show{display:block}
 #quest-reset:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
+#share-button{position:absolute;top:max(128px,calc(106px + env(safe-area-inset-top)));right:max(22px,env(safe-area-inset-right));z-index:20;display:none;width:34px;height:34px;border:1px solid #D4A030;border-radius:4px;background:rgba(10,10,10,.82);color:#E8C040;font:18px monospace;cursor:pointer}
+#share-button.show{display:block}
+#share-button:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
 #journal-button{position:absolute;top:max(48px,calc(26px + env(safe-area-inset-top)));right:max(22px,env(safe-area-inset-right));z-index:20;width:42px;height:30px;border:1px solid #5A8848;border-radius:4px;background:rgba(10,10,10,.82);color:#A8C088;font:10px 'Silkscreen',monospace;cursor:pointer}
 #journal-button:focus-visible,#journal-close:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
 #sound-button{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:20;width:38px;height:34px;border:1px solid #5A8848;border-radius:4px;background:rgba(10,10,10,.82);color:#A8C088;font:18px monospace;cursor:pointer}
@@ -57,6 +60,7 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
   #quest{top:calc(54px + env(safe-area-inset-top));right:12px;font-size:9px}
   #journal-button{top:calc(74px + env(safe-area-inset-top));right:12px}
   #quest-reset{top:calc(112px + env(safe-area-inset-top));right:12px}
+  #share-button{top:calc(152px + env(safe-area-inset-top));right:12px}
   #hint{bottom:max(88px,calc(68px + env(safe-area-inset-bottom)));width:70vw;font-size:10px;text-align:center}
   #action-button{display:block}
   #sound-button{right:max(104px,calc(104px + env(safe-area-inset-right)));bottom:max(28px,calc(28px + env(safe-area-inset-bottom)))}
@@ -89,6 +93,7 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
   <div id="quest" aria-live="polite">SIGNALS 0/3</div>
   <button id="journal-button" type="button" aria-label="Open signal log">LOG</button>
   <button id="quest-reset" type="button" aria-label="Restart signal quest" title="Restart signal quest">↻</button>
+  <button id="share-button" type="button" aria-label="Share completion" title="Share completion">↗</button>
   <button id="action-button" type="button" aria-label="Scan or interact">SCAN</button>
   <button id="sound-button" type="button" aria-label="Mute sound" title="Toggle sound">♪</button>
   <p class="sr-only" id="game-instructions">Move with WASD, arrow keys, or by selecting a destination. Press Space or Enter, or use the Scan button, to scan nearby residents or interact with the character you face.</p>
@@ -102,6 +107,7 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
 <script src="src/game-content.js"></script>
 <script src="src/progress.js"></script>
 <script src="src/feedback.js"></script>
+<script src="src/engagement.js"></script>
 <script>
 // ══════════════════════════════════════════════════════
 // SETUP
@@ -120,6 +126,7 @@ const journalDialog = document.getElementById('journal-dialog');
 const journalList = document.getElementById('journal-list');
 const journalClose = document.getElementById('journal-close');
 const soundButton = document.getElementById('sound-button');
+const shareButton = document.getElementById('share-button');
 
 const PX = 3;
 const TILE = 16;
@@ -173,15 +180,29 @@ const {
 } = LittleAndroidLogic;
 const world = createWorldMap(77);
 const MW = world.width, MH = world.height, map = world.map;
-const signalFragments = LittleAndroidContent.SIGNAL_FRAGMENTS.map(fragment => ({
-  ...fragment,
+const dailyChallenge = LittleAndroidEngagement.createDailyChallenge(
+  new Date(),
+  LittleAndroidContent.SIGNAL_FRAGMENTS.map(fragment => fragment.id),
+);
+const fragmentContent = new Map(LittleAndroidContent.SIGNAL_FRAGMENTS.map(fragment => [fragment.id, fragment]));
+const signalFragments = dailyChallenge.order.map(id => ({
+  ...fragmentContent.get(id),
   discovered: false,
   collected: false,
 }));
 let progressStorage = null;
 try { progressStorage = window.localStorage; } catch {}
-const savedProgress = LittleAndroidProgress.loadProgress(progressStorage);
+const loadedProgress = LittleAndroidProgress.loadProgress(progressStorage);
+const savedProgress = LittleAndroidProgress.scopeProgressToChallenge(
+  loadedProgress,
+  dailyChallenge.dateKey,
+);
+if (loadedProgress.challengeDate !== savedProgress.challengeDate) {
+  LittleAndroidProgress.saveProgress(progressStorage, savedProgress);
+}
 const feedback = LittleAndroidFeedback.createFeedbackController(window, progressStorage);
+const metrics = LittleAndroidEngagement.createLocalMetrics(progressStorage);
+metrics.increment('sessions');
 let progressGeneration = savedProgress.generation;
 for (const fragment of signalFragments) {
   fragment.discovered = savedProgress.discoveredFragments.includes(fragment.id);
@@ -274,6 +295,7 @@ function playerStartMove(dir) {
   player.moveToX = tx; player.moveToY = ty;
   player.moveProgress = 0;
   player.idleTimer = 0;
+  metrics.markOnce('first_move');
 }
 
 function drawUnit01(sx, sy, facing, walkFrame, moving, idleCoreOn, interacting) {
@@ -660,6 +682,7 @@ function beginPlayerInteraction(npc) {
   triggerNPCInteraction(npc);
   rememberNPC(npc);
   feedback.play('interact');
+  metrics.markOnce('first_interaction');
   const dialogue = LittleAndroidContent.NPC_DIALOGUE[npc.type];
   showStatus(dialogue ? (quest.complete ? dialogue.complete : dialogue.active) : `LINK: ${npc.scanLabel || npc.type.toUpperCase()}`, 3.5);
 }
@@ -974,13 +997,15 @@ function getActiveFragmentAt(x, y) {
 
 function updateQuestUI() {
   const collected = signalFragments.filter(fragment => fragment.collected).length;
-  questEl.textContent = quest.complete ? 'FACTORY ONLINE' : `SIGNALS ${collected}/${signalFragments.length}`;
+  questEl.textContent = quest.complete ? `FACTORY ONLINE · ${dailyChallenge.code}` : `SIGNALS ${collected}/${signalFragments.length} · ${dailyChallenge.code}`;
   questResetButton.classList.toggle('show', quest.complete);
+  shareButton.classList.toggle('show', quest.complete);
 }
 
 function currentProgress() {
   return {
     version: LittleAndroidProgress.SAVE_VERSION,
+    challengeDate: dailyChallenge.dateKey,
     generation: progressGeneration,
     discoveredFragments: signalFragments.filter(fragment => fragment.discovered).map(fragment => fragment.id),
     collectedFragments: signalFragments.filter(fragment => fragment.collected).map(fragment => fragment.id),
@@ -990,7 +1015,9 @@ function currentProgress() {
 }
 
 function persistProgress() {
-  const latest = LittleAndroidProgress.loadProgress(progressStorage);
+  const stored = LittleAndroidProgress.loadProgress(progressStorage);
+  if (stored.challengeDate && stored.challengeDate !== dailyChallenge.dateKey) return false;
+  const latest = LittleAndroidProgress.scopeProgressToChallenge(stored, dailyChallenge.dateKey);
   const merged = LittleAndroidProgress.mergeProgress(
     latest,
     currentProgress(),
@@ -1039,6 +1066,7 @@ function collectFragment(fragment) {
     showStatus('FACTORY LINK RESTORED', 4);
     feedback.play('complete');
     feedback.haptic([25, 35, 50]);
+    metrics.increment('completions');
   } else {
     showStatus(`${fragment.name} RECOVERED · ${collected}/${signalFragments.length}`, 2.5);
     feedback.play('collect');
@@ -1051,6 +1079,11 @@ function collectFragment(fragment) {
 }
 
 function resetQuest() {
+  const storedProgress = LittleAndroidProgress.loadProgress(progressStorage);
+  if (storedProgress.challengeDate && storedProgress.challengeDate !== dailyChallenge.dateKey) {
+    showStatus('NEW DAILY CHALLENGE ACTIVE IN ANOTHER TAB', 3);
+    return false;
+  }
   const occupiedSignalSite = signalFragments.some(fragment => (
     entityOccupiesTile(player, fragment.x, fragment.y) ||
     isTileReserved(npcs, fragment.x, fragment.y, null)
@@ -1069,12 +1102,13 @@ function resetQuest() {
   discoveredNPCs.clear();
   quest.complete = false;
   document.body.classList.remove('world-restored');
-  const storedGeneration = LittleAndroidProgress.loadProgress(progressStorage).generation;
+  const storedGeneration = storedProgress.generation;
   progressGeneration = Math.max(progressGeneration, storedGeneration) + 1;
   LittleAndroidProgress.saveProgress(progressStorage, currentProgress());
   updateQuestUI();
   updateJournal();
   showStatus('SIGNAL SEARCH RESTARTED', 2);
+  metrics.increment('replays');
   return true;
 }
 
@@ -1123,6 +1157,30 @@ soundButton.addEventListener('click', () => {
   if (!muted) feedback.play('interact');
 });
 
+async function shareCompletion() {
+  const text = LittleAndroidEngagement.completionText(dailyChallenge.code);
+  metrics.increment('share_intent');
+  if (window.navigator && typeof window.navigator.share === 'function') {
+    try {
+      await window.navigator.share({ title: 'Little Android', text, url: 'https://littleandroid.com' });
+      showStatus('COMPLETION SHARED', 2);
+      return;
+    } catch {
+      showStatus('SHARE CANCELLED', 2);
+      return;
+    }
+  }
+  if (window.navigator && window.navigator.clipboard) {
+    try {
+      await window.navigator.clipboard.writeText(text);
+      showStatus('RESULT COPIED', 2);
+      return;
+    } catch {}
+  }
+  showStatus(text, 4);
+}
+shareButton.addEventListener('click', shareCompletion);
+
 let statusTimer = 0;
 function showStatus(message, duration = 1.5) {
   statusEl.textContent = message;
@@ -1168,6 +1226,7 @@ function triggerScanPulse() {
   player.idleTimer = 0;
   showStatus('SCANNING...');
   feedback.play('scan');
+  metrics.markOnce('first_scan');
   return true;
 }
 

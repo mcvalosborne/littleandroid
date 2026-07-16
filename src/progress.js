@@ -6,11 +6,12 @@
   'use strict';
 
   const SAVE_KEY = 'littleandroid.progress';
-  const SAVE_VERSION = 1;
+  const SAVE_VERSION = 2;
 
   function defaultProgress() {
     return {
       version: SAVE_VERSION,
+      challengeDate: '',
       generation: 0,
       discoveredFragments: [],
       collectedFragments: [],
@@ -28,9 +29,10 @@
     if (!raw) return defaultProgress();
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if (!parsed || parsed.version !== SAVE_VERSION) return defaultProgress();
+      if (!parsed || (parsed.version !== SAVE_VERSION && parsed.version !== 1)) return defaultProgress();
       return {
         version: SAVE_VERSION,
+        challengeDate: typeof parsed.challengeDate === 'string' ? parsed.challengeDate : '',
         generation: Number.isSafeInteger(parsed.generation) && parsed.generation >= 0 ? parsed.generation : 0,
         discoveredFragments: normalizeStringList(parsed.discoveredFragments),
         collectedFragments: normalizeStringList(parsed.collectedFragments),
@@ -50,6 +52,18 @@
     }
   }
 
+  function scopeProgressToChallenge(progress, challengeDate) {
+    const normalized = parseProgress(progress);
+    if (!normalized.challengeDate) return { ...normalized, challengeDate };
+    if (normalized.challengeDate === challengeDate) return normalized;
+    return {
+      ...defaultProgress(),
+      challengeDate,
+      generation: normalized.generation + 1,
+      discoveredNPCs: normalized.discoveredNPCs,
+    };
+  }
+
   function mergeProgress(base, incoming, requiredFragmentIds = []) {
     const current = parseProgress(base);
     const next = parseProgress(incoming);
@@ -62,6 +76,7 @@
     ]);
     return {
       version: SAVE_VERSION,
+      challengeDate: next.challengeDate || current.challengeDate,
       generation: current.generation,
       discoveredFragments: normalizeStringList([
         ...current.discoveredFragments,
@@ -105,6 +120,7 @@
     defaultProgress,
     parseProgress,
     loadProgress,
+    scopeProgressToChallenge,
     mergeProgress,
     saveProgress,
     clearProgress,
