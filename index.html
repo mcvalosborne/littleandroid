@@ -189,7 +189,10 @@ const signalFragments = dailyChallenge.order.map(id => ({
 }));
 let progressStorage = null;
 try { progressStorage = window.localStorage; } catch {}
-const savedProgress = LittleAndroidProgress.loadProgress(progressStorage);
+const savedProgress = LittleAndroidProgress.scopeProgressToChallenge(
+  LittleAndroidProgress.loadProgress(progressStorage),
+  dailyChallenge.dateKey,
+);
 const feedback = LittleAndroidFeedback.createFeedbackController(window, progressStorage);
 const metrics = LittleAndroidEngagement.createLocalMetrics(progressStorage);
 metrics.increment('sessions');
@@ -982,6 +985,7 @@ function updateQuestUI() {
 function currentProgress() {
   return {
     version: LittleAndroidProgress.SAVE_VERSION,
+    challengeDate: dailyChallenge.dateKey,
     discoveredFragments: signalFragments.filter(fragment => fragment.discovered).map(fragment => fragment.id),
     collectedFragments: signalFragments.filter(fragment => fragment.collected).map(fragment => fragment.id),
     discoveredNPCs: [...discoveredNPCs],

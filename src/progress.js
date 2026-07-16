@@ -6,11 +6,12 @@
   'use strict';
 
   const SAVE_KEY = 'littleandroid.progress';
-  const SAVE_VERSION = 1;
+  const SAVE_VERSION = 2;
 
   function defaultProgress() {
     return {
       version: SAVE_VERSION,
+      challengeDate: '',
       discoveredFragments: [],
       collectedFragments: [],
       discoveredNPCs: [],
@@ -30,6 +31,7 @@
       if (!parsed || parsed.version !== SAVE_VERSION) return defaultProgress();
       return {
         version: SAVE_VERSION,
+        challengeDate: typeof parsed.challengeDate === 'string' ? parsed.challengeDate : '',
         discoveredFragments: normalizeStringList(parsed.discoveredFragments),
         collectedFragments: normalizeStringList(parsed.collectedFragments),
         discoveredNPCs: normalizeStringList(parsed.discoveredNPCs),
@@ -46,6 +48,12 @@
     } catch {
       return defaultProgress();
     }
+  }
+
+  function scopeProgressToChallenge(progress, challengeDate) {
+    const normalized = parseProgress(progress);
+    if (normalized.challengeDate === challengeDate) return normalized;
+    return { ...defaultProgress(), challengeDate };
   }
 
   function saveProgress(storage, progress) {
@@ -74,6 +82,7 @@
     defaultProgress,
     parseProgress,
     loadProgress,
+    scopeProgressToChallenge,
     saveProgress,
     clearProgress,
   });

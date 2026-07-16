@@ -4,9 +4,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   SAVE_KEY,
+  SAVE_VERSION,
   defaultProgress,
   parseProgress,
   loadProgress,
+  scopeProgressToChallenge,
   saveProgress,
   clearProgress,
 } = require('../src/progress.js');
@@ -27,7 +29,8 @@ test('invalid and outdated saves reset safely', () => {
 
 test('progress normalizes lists and ignores unknown fields', () => {
   const parsed = parseProgress({
-    version: 1,
+    version: SAVE_VERSION,
+    challengeDate: '2026-07-16',
     discoveredFragments: ['a', 'a', 4],
     collectedFragments: ['a'],
     discoveredNPCs: ['scout'],
@@ -35,11 +38,27 @@ test('progress normalizes lists and ignores unknown fields', () => {
     injected: '<script>',
   });
   assert.deepEqual(parsed, {
-    version: 1,
+    version: SAVE_VERSION,
+    challengeDate: '2026-07-16',
     discoveredFragments: ['a'],
     collectedFragments: ['a'],
     discoveredNPCs: ['scout'],
     complete: true,
+  });
+});
+
+test('daily progress restores only for the matching challenge date', () => {
+  const completed = {
+    ...defaultProgress(),
+    challengeDate: '2026-07-15',
+    discoveredFragments: ['field-coil'],
+    collectedFragments: ['field-coil'],
+    complete: true,
+  };
+  assert.deepEqual(scopeProgressToChallenge(completed, '2026-07-15'), completed);
+  assert.deepEqual(scopeProgressToChallenge(completed, '2026-07-16'), {
+    ...defaultProgress(),
+    challengeDate: '2026-07-16',
   });
 });
 
