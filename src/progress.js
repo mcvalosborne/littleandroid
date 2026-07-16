@@ -48,6 +48,27 @@
     }
   }
 
+  function mergeProgress(base, incoming) {
+    const current = parseProgress(base);
+    const next = parseProgress(incoming);
+    return {
+      version: SAVE_VERSION,
+      discoveredFragments: normalizeStringList([
+        ...current.discoveredFragments,
+        ...next.discoveredFragments,
+      ]),
+      collectedFragments: normalizeStringList([
+        ...current.collectedFragments,
+        ...next.collectedFragments,
+      ]),
+      discoveredNPCs: normalizeStringList([
+        ...current.discoveredNPCs,
+        ...next.discoveredNPCs,
+      ]),
+      complete: current.complete || next.complete,
+    };
+  }
+
   function saveProgress(storage, progress) {
     try {
       if (!storage) return false;
@@ -74,6 +95,7 @@
     defaultProgress,
     parseProgress,
     loadProgress,
+    mergeProgress,
     saveProgress,
     clearProgress,
   });

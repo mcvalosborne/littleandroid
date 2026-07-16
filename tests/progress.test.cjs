@@ -7,6 +7,7 @@ const {
   defaultProgress,
   parseProgress,
   loadProgress,
+  mergeProgress,
   saveProgress,
   clearProgress,
 } = require('../src/progress.js');
@@ -51,4 +52,22 @@ test('progress round-trips and clears through storage', () => {
   assert.deepEqual(loadProgress(storage), progress);
   assert.equal(clearProgress(storage), true);
   assert.deepEqual(loadProgress(storage), defaultProgress());
+});
+
+test('progress merges monotonically across stale tabs', () => {
+  const firstTab = {
+    ...defaultProgress(),
+    discoveredFragments: ['field-coil'],
+    collectedFragments: ['field-coil'],
+  };
+  const staleTab = {
+    ...defaultProgress(),
+    discoveredNPCs: ['OVERSEER'],
+  };
+  assert.deepEqual(mergeProgress(firstTab, staleTab), {
+    ...defaultProgress(),
+    discoveredFragments: ['field-coil'],
+    collectedFragments: ['field-coil'],
+    discoveredNPCs: ['OVERSEER'],
+  });
 });

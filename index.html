@@ -13,6 +13,7 @@ body{background:#1a1510;overflow:hidden;width:100vw;height:100vh;height:100dvh;d
 canvas{display:block;width:100%;height:100%;cursor:crosshair;touch-action:manipulation;outline:none}
 canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
 #ui-overlay{position:absolute;top:0;left:0;right:0;pointer-events:none;z-index:10;display:flex;justify-content:center;padding:calc(20px + env(safe-area-inset-top)) 20px 20px}
+#ui-overlay button{pointer-events:auto}
 #title-bar{background:rgba(10,10,10,0.8);backdrop-filter:blur(6px);border:2px solid #5A8848;border-radius:4px;padding:10px 24px;display:flex;align-items:center;gap:14px;box-shadow:0 0 20px rgba(90,136,72,0.2)}
 #title-bar h1{font-family:'Silkscreen',monospace;font-size:18px;color:#D4A030;text-shadow:2px 2px 0px #6B4820;letter-spacing:2px}
 #title-bar .dot{width:8px;height:8px;background:#D4A030;border-radius:50%;animation:blink 1.6s ease-in-out infinite}
@@ -970,7 +971,9 @@ function currentProgress() {
 }
 
 function persistProgress() {
-  LittleAndroidProgress.saveProgress(progressStorage, currentProgress());
+  const latest = LittleAndroidProgress.loadProgress(progressStorage);
+  const merged = LittleAndroidProgress.mergeProgress(latest, currentProgress());
+  LittleAndroidProgress.saveProgress(progressStorage, merged);
 }
 
 function rememberNPC(npc) {
