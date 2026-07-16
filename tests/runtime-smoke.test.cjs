@@ -173,6 +173,23 @@ test('runtime initializes and renders a frame', async () => {
     ({ refused: replayRefused, accepted: replayAccepted, collected: signalFragments.filter(fragment => fragment.collected).length });
   `, sandbox);
   assert.deepEqual({ ...replay }, { refused: false, accepted: true, collected: 0 });
+
+  const staleDailyReset = vm.runInContext(`
+    const futureProgress = {
+      ...LittleAndroidProgress.loadProgress(window.localStorage),
+      challengeDate: '2099-01-01',
+      generation: progressGeneration + 1,
+      discoveredNPCs: ['FUTURE RESIDENT'],
+    };
+    LittleAndroidProgress.saveProgress(window.localStorage, futureProgress);
+    const resetAccepted = requestQuestReset(() => true);
+    const storedAfterReset = LittleAndroidProgress.loadProgress(window.localStorage);
+    ({ resetAccepted, date: storedAfterReset.challengeDate, residents: storedAfterReset.discoveredNPCs });
+  `, sandbox);
+  assert.deepEqual(
+    { ...staleDailyReset, residents: [...staleDailyReset.residents] },
+    { resetAccepted: false, date: '2099-01-01', residents: ['FUTURE RESIDENT'] },
+  );
 });
 
 test('NPC movement rejects a destination reserved earlier in the frame', () => {

@@ -1079,6 +1079,11 @@ function collectFragment(fragment) {
 }
 
 function resetQuest() {
+  const storedProgress = LittleAndroidProgress.loadProgress(progressStorage);
+  if (storedProgress.challengeDate && storedProgress.challengeDate !== dailyChallenge.dateKey) {
+    showStatus('NEW DAILY CHALLENGE ACTIVE IN ANOTHER TAB', 3);
+    return false;
+  }
   const occupiedSignalSite = signalFragments.some(fragment => (
     entityOccupiesTile(player, fragment.x, fragment.y) ||
     isTileReserved(npcs, fragment.x, fragment.y, null)
@@ -1097,7 +1102,7 @@ function resetQuest() {
   discoveredNPCs.clear();
   quest.complete = false;
   document.body.classList.remove('world-restored');
-  const storedGeneration = LittleAndroidProgress.loadProgress(progressStorage).generation;
+  const storedGeneration = storedProgress.generation;
   progressGeneration = Math.max(progressGeneration, storedGeneration) + 1;
   LittleAndroidProgress.saveProgress(progressStorage, currentProgress());
   updateQuestUI();
