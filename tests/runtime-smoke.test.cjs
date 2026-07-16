@@ -49,6 +49,9 @@ test('runtime initializes and renders a frame', async () => {
     'action-button': element(),
     quest: element(),
     'quest-reset': element(),
+    'briefing-button': element(),
+    'briefing-dialog': element(),
+    'briefing-start': element(),
     'journal-button': element(),
     'journal-dialog': element(),
     'journal-list': element(),
@@ -204,7 +207,7 @@ test('NPC movement rejects a destination reserved earlier in the frame', () => {
     getBoundingClientRect: () => ({ left: 0, top: 0 }),
     addEventListener() {}, getContext: () => context2d,
   });
-  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element(), 'share-button': element() };
+  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'briefing-button': element(), 'briefing-dialog': element(), 'briefing-start': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element(), 'share-button': element() };
   const sandbox = {
     LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, LittleAndroidEngagement, console, Date, Math, setTimeout, clearTimeout,
     document: { hidden: false, body: element(), getElementById: id => elements[id] },
@@ -241,7 +244,7 @@ test('interaction waits for a moving NPC to finish its tile step', () => {
     getBoundingClientRect: () => ({ left: 0, top: 0 }), addEventListener() {},
     getContext: () => context2d,
   });
-  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element(), 'share-button': element() };
+  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'briefing-button': element(), 'briefing-dialog': element(), 'briefing-start': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element(), 'share-button': element() };
   const sandbox = {
     LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, LittleAndroidEngagement, console, Date, Math, setTimeout, clearTimeout,
     document: { hidden: false, body: element(), getElementById: id => elements[id] },

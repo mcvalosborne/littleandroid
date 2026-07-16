@@ -6,6 +6,8 @@ An explorable pixel-art micro-world rendered entirely in the browser. Walk throu
 
 ## Controls
 
+First-time players receive a short mission briefing. Reopen it at any time with the `?` control.
+
 | Action | Input |
 | --- | --- |
 | Move | `W` `A` `S` `D` or click/tap a destination |
@@ -20,6 +22,9 @@ The current mobile experience supports tap-to-move. A dedicated touch action con
 - Eight residents with distinct movement and interaction state machines
 - Grid-based movement and click-to-move pathfinding
 - A radial scan that reveals character identities
+- A three-part signal recovery quest with resident hints and daily challenge codes
+- Persistent progress, a discovery journal, replay, and completion sharing
+- Optional sound, haptic feedback, touch controls, and reduced-motion support
 - No runtime framework, backend, or asset bundle
 
 ## Run locally
