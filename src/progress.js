@@ -11,6 +11,7 @@
   function defaultProgress() {
     return {
       version: SAVE_VERSION,
+      generation: 0,
       discoveredFragments: [],
       collectedFragments: [],
       discoveredNPCs: [],
@@ -30,6 +31,7 @@
       if (!parsed || parsed.version !== SAVE_VERSION) return defaultProgress();
       return {
         version: SAVE_VERSION,
+        generation: Number.isSafeInteger(parsed.generation) && parsed.generation >= 0 ? parsed.generation : 0,
         discoveredFragments: normalizeStringList(parsed.discoveredFragments),
         collectedFragments: normalizeStringList(parsed.collectedFragments),
         discoveredNPCs: normalizeStringList(parsed.discoveredNPCs),
@@ -48,24 +50,32 @@
     }
   }
 
-  function mergeProgress(base, incoming) {
+  function mergeProgress(base, incoming, requiredFragmentIds = []) {
     const current = parseProgress(base);
     const next = parseProgress(incoming);
+    if (current.generation !== next.generation) {
+      return current.generation > next.generation ? current : next;
+    }
+    const collectedFragments = normalizeStringList([
+      ...current.collectedFragments,
+      ...next.collectedFragments,
+    ]);
     return {
       version: SAVE_VERSION,
+      generation: current.generation,
       discoveredFragments: normalizeStringList([
         ...current.discoveredFragments,
         ...next.discoveredFragments,
       ]),
-      collectedFragments: normalizeStringList([
-        ...current.collectedFragments,
-        ...next.collectedFragments,
-      ]),
+      collectedFragments,
       discoveredNPCs: normalizeStringList([
         ...current.discoveredNPCs,
         ...next.discoveredNPCs,
       ]),
-      complete: current.complete || next.complete,
+      complete: current.complete || next.complete || (
+        requiredFragmentIds.length > 0 &&
+        requiredFragmentIds.every(id => collectedFragments.includes(id))
+      ),
     };
   }
 
