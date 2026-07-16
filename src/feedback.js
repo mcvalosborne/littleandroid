@@ -40,12 +40,24 @@
     let context = null;
     let muted = readMuted(storage);
 
-    function play(name) {
-      const cue = CUES[name];
-      if (muted || !cue || !AudioContextClass) return false;
+    function unlock() {
+      if (muted || !AudioContextClass) return false;
       try {
         context ||= new AudioContextClass();
-        if (context.state === 'suspended') context.resume();
+        if (context.state === 'suspended') {
+          const resume = context.resume();
+          if (resume && typeof resume.catch === 'function') resume.catch(() => {});
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function play(name) {
+      const cue = CUES[name];
+      if (!cue || !unlock()) return false;
+      try {
         const start = context.currentTime;
         for (const [frequency, offset] of cue) {
           const oscillator = context.createOscillator();
@@ -77,6 +89,7 @@
     }
 
     return Object.freeze({
+      unlock,
       play,
       haptic,
       isMuted: () => muted,

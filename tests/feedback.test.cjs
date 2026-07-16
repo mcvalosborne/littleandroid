@@ -29,3 +29,21 @@ test('feedback is a safe no-op when browser APIs are unavailable', () => {
   assert.equal(controller.toggleMuted(), true);
   assert.equal(readMuted(storage), true);
 });
+
+test('audio unlock resumes a suspended context during input', () => {
+  let resumeCalls = 0;
+  class AudioContext {
+    constructor() {
+      this.state = 'suspended';
+    }
+
+    resume() {
+      resumeCalls++;
+      this.state = 'running';
+      return Promise.resolve();
+    }
+  }
+  const controller = createFeedbackController({ AudioContext }, memoryStorage());
+  assert.equal(controller.unlock(), true);
+  assert.equal(resumeCalls, 1);
+});
