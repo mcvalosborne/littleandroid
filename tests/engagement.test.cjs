@@ -23,7 +23,11 @@ test('daily challenges are deterministic and retain every fragment', () => {
   const second = createDailyChallenge('2026-07-16', ids);
   assert.deepEqual(first, second);
   assert.deepEqual([...first.order].sort(), ids);
-  assert.match(first.code, /^D\d{4}$/);
+  assert.match(first.code, /^D20260716-\d{4}$/);
+  assert.notEqual(
+    createDailyChallenge('2026-06-05', ids).code,
+    createDailyChallenge('2027-01-01', ids).code,
+  );
 });
 
 test('local metrics count without storing event payloads', () => {
@@ -38,7 +42,7 @@ test('local metrics count without storing event payloads', () => {
 
 test('completion copy contains only challenge and public URL', () => {
   assert.equal(
-    completionText('D0042'),
-    'I restored the Little Android factory (D0042). Explore it at https://littleandroid.com',
+    completionText('D20260716-0042'),
+    'I restored the Little Android factory (D20260716-0042). Explore it at https://littleandroid.com',
   );
 });

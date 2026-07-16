@@ -37,7 +37,7 @@
     }
     return {
       dateKey,
-      code: `D${String(seed % 10000).padStart(4, '0')}`,
+      code: `D${dateKey.replace(/-/g, '')}-${String(seed % 10000).padStart(4, '0')}`,
       order,
     };
   }

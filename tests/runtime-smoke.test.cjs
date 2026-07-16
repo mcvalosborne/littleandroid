@@ -161,7 +161,7 @@ test('runtime initializes and renders a frame', async () => {
     ({ complete: quest.complete, collected: signalFragments.filter(fragment => fragment.collected).length });
   `, sandbox);
   assert.deepEqual({ ...completion }, { complete: true, collected: 3 });
-  assert.match(elements.quest.textContent, /^FACTORY ONLINE · D\d{4}$/);
+  assert.match(elements.quest.textContent, /^FACTORY ONLINE · D\d{8}-\d{4}$/);
 
   const replay = vm.runInContext(`
     player.tileX = signalFragments[0].x;
