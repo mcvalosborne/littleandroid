@@ -388,6 +388,7 @@ function npcStartMove(npc, dir, speed) {
   if (entityOccupiesTile(player, tx, ty)) return false;
   // Check other NPCs
   if (isTileReserved(npcs, tx, ty, npc)) return false;
+  if (getActiveFragmentAt(tx, ty)) return false;
   npc.facing = dir;
   npc.moveFromX = npc.tileX; npc.moveFromY = npc.tileY;
   npc.moveToX = tx; npc.moveToY = ty;
@@ -942,6 +943,12 @@ function getFacingFragment() {
 function getUncollectedFragmentAt(x, y) {
   return signalFragments.find(fragment => (
     fragment.discovered && !fragment.collected && fragment.x === x && fragment.y === y
+  )) || null;
+}
+
+function getActiveFragmentAt(x, y) {
+  return signalFragments.find(fragment => (
+    !fragment.collected && fragment.x === x && fragment.y === y
   )) || null;
 }
 

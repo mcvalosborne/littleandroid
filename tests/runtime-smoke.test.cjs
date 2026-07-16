@@ -151,10 +151,16 @@ test('NPC movement rejects a destination reserved earlier in the frame', () => {
     npcs.length = 0;
     const first = makeNPC('worker', 9, 11, 'east');
     const second = makeNPC('worker', 11, 11, 'west');
-    npcs.push(first, second);
-    ({ first: npcStartMove(first, 'east', 200), second: npcStartMove(second, 'west', 200) });
+    const fragment = signalFragments[0];
+    const fragmentSeeker = makeNPC('worker', fragment.x - 1, fragment.y, 'east');
+    npcs.push(first, second, fragmentSeeker);
+    ({
+      first: npcStartMove(first, 'east', 200),
+      second: npcStartMove(second, 'west', 200),
+      fragment: npcStartMove(fragmentSeeker, 'east', 200),
+    });
   `, sandbox);
-  assert.deepEqual({ ...result }, { first: true, second: false });
+  assert.deepEqual({ ...result }, { first: true, second: false, fragment: false });
 });
 
 test('interaction waits for a moving NPC to finish its tile step', () => {
