@@ -396,6 +396,7 @@ function npcStartMove(npc, dir, speed) {
   if (entityOccupiesTile(player, tx, ty)) return false;
   // Check other NPCs
   if (isTileReserved(npcs, tx, ty, npc)) return false;
+  if (getActiveFragmentAt(tx, ty)) return false;
   npc.facing = dir;
   npc.moveFromX = npc.tileX; npc.moveFromY = npc.tileY;
   npc.moveToX = tx; npc.moveToY = ty;
@@ -956,6 +957,12 @@ function getUncollectedFragmentAt(x, y) {
   )) || null;
 }
 
+function getActiveFragmentAt(x, y) {
+  return signalFragments.find(fragment => (
+    !fragment.collected && fragment.x === x && fragment.y === y
+  )) || null;
+}
+
 function updateQuestUI() {
   const collected = signalFragments.filter(fragment => fragment.collected).length;
   questEl.textContent = quest.complete ? 'FACTORY ONLINE' : `SIGNALS ${collected}/${signalFragments.length}`;
@@ -1030,6 +1037,16 @@ function resetQuest() {
   showStatus('SIGNAL SEARCH RESTARTED', 2);
 }
 
+function requestQuestReset(confirmReset) {
+  const message = 'Restart the journey? Recovered signals and the resident log will be cleared.';
+  const confirmed = typeof confirmReset === 'function' ?
+    confirmReset(message) :
+    typeof window.confirm === 'function' && window.confirm(message);
+  if (!confirmed) return false;
+  resetQuest();
+  return true;
+}
+
 function performAction() {
   if (player.state !== 'IDLE') return;
   const adjacentFragment = getFacingFragment();
@@ -1046,7 +1063,7 @@ actionButton.addEventListener('click', () => {
   canvas.focus({ preventScroll: true });
   performAction();
 });
-questResetButton.addEventListener('click', resetQuest);
+questResetButton.addEventListener('click', () => requestQuestReset());
 journalButton.addEventListener('click', () => {
   updateJournal();
   journalDialog.showModal();
