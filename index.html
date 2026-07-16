@@ -38,6 +38,7 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair}
   <div id="coords"></div>
   <div id="emote"></div>
 </div>
+<script src="src/game-logic.js"></script>
 <script>
 // ══════════════════════════════════════════════════════
 // SETUP
@@ -84,33 +85,9 @@ const DG0='#D8C8B0',DG1='#C0B098',DG2='#988870';
 // ══════════════════════════════════════════════════════
 // MAP (24x20 River Factory Zone)
 // ══════════════════════════════════════════════════════
-const MW=24,MH=20;
-const map=[];
-for(let y=0;y<MH;y++){map[y]=[];for(let x=0;x<MW;x++)map[y][x]=0}
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const rng=mulberry32(77);
-
-// Factory
-for(let y=1;y<=5;y++)for(let x=1;x<=8;x++)map[y][x]=y===1?9:8;
-map[0][3]=11;map[0][7]=11;map[5][4]=10;map[5][5]=10;
-// River
-for(let y=0;y<MH;y++){map[y][17]=17;map[y][18]=5;map[y][19]=4;map[y][20]=5;if(21<MW)map[y][21]=17;if(22<MW)map[y][22]=0;if(23<MW)map[y][23]=0}
-// Bridge
-for(let x=17;x<=21;x++){map[9][x]=13;map[10][x]=12;map[11][x]=12;map[12][x]=13}
-// Path
-for(let y=6;y<=10;y++){map[y][4]=2;map[y][5]=2}
-for(let x=5;x<=17;x++){map[10][x]=2;map[11][x]=2}
-// Tall grass
-for(const[x1,y1,x2,y2]of[[10,2,14,5],[12,6,16,9],[1,13,6,17],[8,14,13,18]])
-  for(let y=y1;y<=Math.min(y2,MH-1);y++)for(let x=x1;x<=Math.min(x2,MW-1);x++)
-    if(map[y][x]===0&&rng()<0.6)map[y][x]=1;
-// Trees
-for(const[tx,cy]of[[15,2],[16,4],[15,6],[16,8],[15,14],[16,16],[13,3],[14,7],[13,13],[14,17],[3,8],[7,7],[10,8],[1,11],[8,12],[11,1],[12,3]]){
-  if(cy>=0&&cy<MH&&tx<MW){if(map[cy][tx]===0||map[cy][tx]===1)map[cy][tx]=6;if(cy+1<MH&&(map[cy+1][tx]===0||map[cy+1][tx]===1))map[cy+1][tx]=7}}
-// Details
-for(const[rx,ry]of[[12,10],[2,15],[9,17],[16,13]])if(map[ry][rx]===0||map[ry][rx]===1)map[ry][rx]=14;
-if(map[9][6]===0||map[9][6]===2)map[9][6]=15;
-if(map[6][3]===0)map[6][3]=16;
+const { DIR, oppositeDir, createWorldMap, findPath: findWorldPath } = LittleAndroidLogic;
+const world = createWorldMap(77);
+const MW = world.width, MH = world.height, map = world.map;
 
 function isWalkable(tx,ty){
   if(tx<0||ty<0||tx>=MW||ty>=MH)return false;
@@ -155,9 +132,6 @@ function drawTile(wx,wy,type,sx,sy){
 // ══════════════════════════════════════════════════════
 // DIRECTION HELPERS
 // ══════════════════════════════════════════════════════
-const DIR={south:{dx:0,dy:1},north:{dx:0,dy:-1},east:{dx:1,dy:0},west:{dx:-1,dy:0}};
-function oppositeDir(d){return{south:'north',north:'south',east:'west',west:'east'}[d]}
-
 // ══════════════════════════════════════════════════════
 // UNIT-01 PLAYER CHARACTER (Full State Machine)
 // ══════════════════════════════════════════════════════
@@ -750,29 +724,7 @@ function drawNPC(npc, sx, sy) {
 // PATHFINDING
 // ══════════════════════════════════════════════════════
 function findPath(sx,sy,ex,ey){
-  sx=Math.round(sx);sy=Math.round(sy);ex=Math.round(ex);ey=Math.round(ey);
-  if(!isWalkable(ex,ey)){
-    let best=null,bd=Infinity;
-    for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++)
-      if(isWalkable(ex+dx,ey+dy)){const d=dx*dx+dy*dy;if(d<bd){bd=d;best={x:ex+dx,y:ey+dy}}}
-    if(!best)return[];ex=best.x;ey=best.y;
-  }
-  const key=(x,y)=>`${x},${y}`;
-  const open=[{x:sx,y:sy,g:0,h:0,f:0,parent:null}],closed=new Set(),gM={};gM[key(sx,sy)]=0;
-  const h=(x,y)=>Math.abs(x-ex)+Math.abs(y-ey);
-  let it=0;
-  while(open.length>0&&it<3000){
-    it++;open.sort((a,b)=>a.f-b.f);const c=open.shift();
-    if(c.x===ex&&c.y===ey){const p=[];let n=c;while(n){p.unshift({x:n.x,y:n.y});n=n.parent}return p}
-    closed.add(key(c.x,c.y));
-    for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]){
-      const nx=c.x+dx,ny=c.y+dy;
-      if(closed.has(key(nx,ny))||!isWalkable(nx,ny))continue;
-      const g=c.g+1;if(gM[key(nx,ny)]!==undefined&&g>=gM[key(nx,ny)])continue;
-      gM[key(nx,ny)]=g;open.push({x:nx,y:ny,g,h:h(nx,ny),f:g+h(nx,ny),parent:c});
-    }
-  }
-  return[];
+  return findWorldPath(sx, sy, ex, ey, isWalkable);
 }
 
 // ══════════════════════════════════════════════════════

@@ -24,13 +24,19 @@ The current mobile experience supports tap-to-move. A dedicated touch action con
 
 ## Run locally
 
-The production version is a static page. Open `index.html` directly in a browser, or serve the directory with any static server:
+The production version is a static page. Serve the directory with any static server:
 
 ```sh
 python3 -m http.server 8000
 ```
 
 Then open `http://localhost:8000`.
+
+Run the dependency-free verification suite with Node.js 22 or later:
+
+```sh
+npm run verify
+```
 
 ## Project direction
 
