@@ -1,0 +1,39 @@
+name: Feature proposal
+description: Propose a focused gameplay, UX, or contributor improvement
+title: "Feature: "
+labels: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: Explain the player or contributor need before describing a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed experience
+      description: Describe the smallest useful implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: Success criteria
+      description: How would we verify that this improves the project?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - Gameplay
+        - UI and UX
+        - Accessibility
+        - Performance
+        - Community
+        - Tooling
+    validations:
+      required: true
