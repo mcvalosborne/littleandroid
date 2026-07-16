@@ -14,7 +14,11 @@ The current production page has no build step. Serve the repository and open it 
 python3 -m http.server 8000
 ```
 
-Before submitting, exercise movement, click-to-move, scanning, and at least one NPC interaction. Use the repository's automated checks as they are introduced under issue #4.
+Before submitting, run the automated checks and exercise movement, click-to-move, scanning, and at least one NPC interaction:
+
+```sh
+npm run verify
+```
 
 ## Pull requests
 

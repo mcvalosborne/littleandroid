@@ -1,0 +1,12 @@
+{
+  "name": "littleandroid",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Interactive pixel-art browser world",
+  "scripts": {
+    "check": "node scripts/check.cjs",
+    "test": "node --test",
+    "verify": "npm run check && npm test"
+  },
+  "license": "MIT"
+}
