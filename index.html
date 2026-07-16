@@ -8,35 +8,63 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#1a1510;overflow:hidden;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Press Start 2P',monospace;image-rendering:pixelated}
-#game-wrapper{position:relative;width:100vw;height:100vh;overflow:hidden}
-canvas{display:block;width:100%;height:100%;cursor:crosshair}
-#ui-overlay{position:absolute;top:0;left:0;right:0;pointer-events:none;z-index:10;display:flex;justify-content:center;padding:20px}
+body{background:#1a1510;overflow:hidden;width:100vw;height:100vh;height:100dvh;display:flex;align-items:center;justify-content:center;font-family:'Press Start 2P',monospace;image-rendering:pixelated}
+#game-wrapper{position:relative;width:100vw;height:100vh;height:100dvh;overflow:hidden}
+canvas{display:block;width:100%;height:100%;cursor:crosshair;touch-action:manipulation;outline:none}
+canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
+#ui-overlay{position:absolute;top:0;left:0;right:0;pointer-events:none;z-index:10;display:flex;justify-content:center;padding:calc(20px + env(safe-area-inset-top)) 20px 20px}
 #title-bar{background:rgba(10,10,10,0.8);backdrop-filter:blur(6px);border:2px solid #5A8848;border-radius:4px;padding:10px 24px;display:flex;align-items:center;gap:14px;box-shadow:0 0 20px rgba(90,136,72,0.2)}
 #title-bar h1{font-family:'Silkscreen',monospace;font-size:18px;color:#D4A030;text-shadow:2px 2px 0px #6B4820;letter-spacing:2px}
 #title-bar .dot{width:8px;height:8px;background:#D4A030;border-radius:50%;animation:blink 1.6s ease-in-out infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
 #hint{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);font-family:'Silkscreen',monospace;font-size:11px;color:#D4A030;opacity:0.6;pointer-events:none;z-index:10;text-shadow:1px 1px 0px #6B4820;animation:fadeHint 4s ease-in-out infinite}
+#hint.status-hidden{visibility:hidden}
 @keyframes fadeHint{0%,100%{opacity:0.6}50%{opacity:0.2}}
 #controls{position:absolute;bottom:20px;left:20px;pointer-events:none;z-index:10;font-family:'Silkscreen',monospace;font-size:9px;color:#8A9870;line-height:1.8;text-shadow:1px 1px 0px #1a1510;opacity:0.7}
 #controls .key{display:inline-block;background:rgba(90,136,72,0.15);border:1px solid rgba(90,136,72,0.3);border-radius:3px;padding:1px 5px;font-family:'Press Start 2P',monospace;font-size:7px;color:#A8C088;margin-right:4px;vertical-align:middle}
 #coords{position:absolute;bottom:24px;right:24px;font-family:'Press Start 2P',monospace;font-size:8px;color:#5A8848;pointer-events:none;z-index:10}
 #emote{position:absolute;pointer-events:none;z-index:15;font-size:24px;transition:transform 0.15s ease-out,opacity 0.15s;transform:scale(0);opacity:0}
 #emote.show{transform:scale(1);opacity:1}
+#action-button{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:20;display:none;min-width:72px;height:52px;padding:0 12px;border:2px solid #D4A030;border-radius:4px;background:rgba(10,10,10,0.88);color:#E8C040;font:700 12px 'Silkscreen',monospace;cursor:pointer;box-shadow:0 0 18px rgba(212,160,48,0.2)}
+#action-button:focus-visible{outline:3px solid #E8E0D0;outline-offset:3px}
+#action-button.cooldown{border-color:#6B9848;color:#A8C088}
+#status{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);z-index:16;max-width:min(80vw,440px);padding:7px 10px;background:rgba(10,10,10,0.82);color:#E8C040;font:11px 'Silkscreen',monospace;text-align:center;opacity:0;transition:opacity .15s;pointer-events:none}
+#status.show{opacity:1}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+@media(max-width:600px){
+  #ui-overlay{justify-content:flex-start;padding:calc(10px + env(safe-area-inset-top)) 10px 10px}
+  #title-bar{padding:7px 10px;gap:7px;max-width:calc(100vw - 20px)}
+  #title-bar h1{font-size:13px;letter-spacing:0;white-space:nowrap}
+  #title-bar .dot{width:6px;height:6px;flex:0 0 auto}
+  #controls,#coords{display:none}
+  #hint{bottom:max(88px,calc(68px + env(safe-area-inset-bottom)));width:70vw;font-size:10px;text-align:center}
+  #action-button{display:block}
+  #status{bottom:max(84px,calc(64px + env(safe-area-inset-bottom)));font-size:10px}
+}
+@media(hover:none),(pointer:coarse){
+  #action-button{display:block}
+}
+@media(prefers-reduced-motion:reduce){
+  #title-bar .dot,#hint{animation:none}
+  #emote,#status{transition:none}
+}
 </style>
 </head>
 <body>
 <div id="game-wrapper">
-  <canvas id="game"></canvas>
+  <canvas id="game" tabindex="0" role="application" aria-describedby="game-instructions" aria-label="Little Android exploration game. Use WASD or arrow keys to move and Space or Enter to scan or interact.">Your browser needs canvas support to play Little Android.</canvas>
   <div id="ui-overlay"><div id="title-bar"><div class="dot"></div><h1>littleandroid.com</h1><div class="dot"></div></div></div>
-  <div id="hint">click anywhere to walk</div>
+  <div id="hint">click or tap to walk</div>
   <div id="controls">
-    <span class="key">WASD</span> move<br>
+    <span class="key">WASD / ARROWS</span> move<br>
     <span class="key">CLICK</span> walk to<br>
     <span class="key">SPACE</span> scan
   </div>
   <div id="coords"></div>
   <div id="emote"></div>
+  <div id="status" role="status" aria-live="polite"></div>
+  <button id="action-button" type="button" aria-label="Scan or interact">SCAN</button>
+  <p class="sr-only" id="game-instructions">Move with WASD, arrow keys, or by selecting a destination. Press Space or Enter, or use the Scan button, to scan nearby residents or interact with the character you face.</p>
 </div>
 <script src="src/game-logic.js"></script>
 <script>
@@ -48,6 +76,8 @@ const ctx = canvas.getContext('2d');
 const coordsEl = document.getElementById('coords');
 const hintEl = document.getElementById('hint');
 const emoteEl = document.getElementById('emote');
+const statusEl = document.getElementById('status');
+const actionButton = document.getElementById('action-button');
 
 const PX = 3;
 const TILE = 16;
@@ -565,6 +595,7 @@ function beginPlayerInteraction(npc) {
   player.interactTarget = npc;
   player.interactArmTimer = 0.2;
   triggerNPCInteraction(npc);
+  showStatus(`LINK: ${npc.scanLabel || npc.type.toUpperCase()}`);
 }
 
 function requestPlayerInteraction(npc) {
@@ -758,7 +789,7 @@ function drawNPC(npc, sx, sy) {
 // PATHFINDING
 // ══════════════════════════════════════════════════════
 function findPath(sx,sy,ex,ey){
-  return findWorldPath(sx, sy, ex, ey, isWalkable);
+  return findWorldPath(sx, sy, ex, ey, isWalkable, { allowNearest: false });
 }
 
 // ══════════════════════════════════════════════════════
@@ -769,6 +800,7 @@ let targetIndex = 0;
 let clickMarker = null;
 
 canvas.addEventListener('click', (e) => {
+  canvas.focus({ preventScroll: true });
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
   const camX = player.renderX * TS - W/2 + TS/2;
@@ -799,6 +831,8 @@ canvas.addEventListener('click', (e) => {
       const dir = dirToward(player.tileX, player.tileY, next.x, next.y);
       playerStartMove(dir);
     }
+  } else if (tileX !== player.tileX || tileY !== player.tileY) {
+    showStatus('PATH BLOCKED');
   }
 });
 
@@ -806,23 +840,11 @@ canvas.addEventListener('click', (e) => {
 const keysDown = {};
 window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
-  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' ','enter'].includes(k)) e.preventDefault();
   keysDown[k] = true;
 
   // Spacebar: action button / scan pulse
-  if (k === ' ' && player.state === 'IDLE') {
-    // Check for adjacent NPC in facing direction
-    const d = DIR[player.facing];
-    const fx = player.tileX + d.dx, fy = player.tileY + d.dy;
-    const adj = isTileOccupiedByNPC(fx, fy, null);
-    if (adj) {
-      // Interact
-      requestPlayerInteraction(adj);
-    } else {
-      // Scan pulse
-      triggerScanPulse();
-    }
-  }
+  if ((k === ' ' || k === 'enter') && !e.repeat) performAction();
 });
 window.addEventListener('keyup', (e) => { keysDown[e.key.toLowerCase()] = false; });
 window.addEventListener('blur', () => {
@@ -837,13 +859,58 @@ function getWASDDirection() {
   return null;
 }
 
+function getFacingNPC() {
+  const direction = DIR[player.facing];
+  return isTileOccupiedByNPC(
+    player.tileX + direction.dx,
+    player.tileY + direction.dy,
+    null,
+  );
+}
+
+function performAction() {
+  if (player.state !== 'IDLE') return;
+  const adjacentNPC = getFacingNPC();
+  if (adjacentNPC) requestPlayerInteraction(adjacentNPC);
+  else triggerScanPulse();
+}
+
+actionButton.addEventListener('click', () => {
+  canvas.focus({ preventScroll: true });
+  performAction();
+});
+
+let statusTimer = 0;
+function showStatus(message, duration = 1.5) {
+  statusEl.textContent = message;
+  statusEl.classList.add('show');
+  hintEl.classList.add('status-hidden');
+  statusTimer = duration;
+}
+
+function updateActionButton() {
+  const canAct = player.state === 'IDLE';
+  const adjacentNPC = canAct ? getFacingNPC() : null;
+  const coolingDown = !adjacentNPC && scanCooldownTimer > 0;
+  actionButton.textContent = adjacentNPC ? 'ACT' : coolingDown ? `${Math.ceil(scanCooldownTimer)}S` : 'SCAN';
+  actionButton.classList.toggle('cooldown', coolingDown);
+  actionButton.setAttribute(
+    'aria-label',
+    adjacentNPC ? `Interact with ${adjacentNPC.scanLabel || adjacentNPC.type}` :
+      coolingDown ? `Scan recharging, ${Math.ceil(scanCooldownTimer)} seconds` : 'Scan nearby residents',
+  );
+}
+
 // ── Scan Pulse System ──
 let scanPulse = null;
 const SCAN_COOLDOWN = 1.5; // seconds
 let scanCooldownTimer = 0;
 
 function triggerScanPulse() {
-  if (scanCooldownTimer > 0) return;
+  if (scanCooldownTimer > 0) {
+    showStatus(`SCAN READY IN ${Math.ceil(scanCooldownTimer)}S`);
+    return false;
+  }
   scanPulse = {
     x: player.tileX, y: player.tileY,
     time: Date.now(),
@@ -855,6 +922,8 @@ function triggerScanPulse() {
   // Brief visor flash on player
   player.idleCoreOn = true;
   player.idleTimer = 0;
+  showStatus('SCANNING...');
+  return true;
 }
 
 // ══════════════════════════════════════════════════════
@@ -865,6 +934,13 @@ let lastTime = 0;
 function update(dt) {
   // Scan cooldown
   if (scanCooldownTimer > 0) scanCooldownTimer -= dt;
+  if (statusTimer > 0) {
+    statusTimer -= dt;
+    if (statusTimer <= 0) {
+      statusEl.classList.remove('show');
+      hintEl.classList.remove('status-hidden');
+    }
+  }
 
   // ── Player State Machine ──
   switch (player.state) {
@@ -1000,6 +1076,7 @@ function update(dt) {
   // ── Update all NPCs ──
   for (const npc of npcs) updateNPC(npc, dt);
   scanLabels = tickTimedItems(scanLabels, dt);
+  updateActionButton();
 
   // ── Emote positioning ──
   if (emoteNPC) {

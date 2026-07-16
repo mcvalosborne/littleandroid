@@ -17,8 +17,10 @@ test('runtime initializes and renders a frame', () => {
   );
   const element = () => ({
     style: {},
-    classList: { add() {}, remove() {} },
+    classList: { add() {}, remove() {}, toggle() {} },
+    setAttribute() {},
     textContent: '',
+    focus() {},
     getBoundingClientRect: () => ({ left: 0, top: 0 }),
     addEventListener: (name, handler) => { listeners[name] = handler; },
     getContext: () => context2d,
@@ -28,6 +30,8 @@ test('runtime initializes and renders a frame', () => {
     coords: element(),
     hint: element(),
     emote: element(),
+    status: element(),
+    'action-button': element(),
   };
   const sandbox = {
     LittleAndroidLogic,
@@ -38,7 +42,7 @@ test('runtime initializes and renders a frame', () => {
     clearTimeout,
     innerWidth: 800,
     innerHeight: 600,
-    document: { getElementById: id => elements[id] },
+    document: { hidden: false, getElementById: id => elements[id] },
     window: {
       innerWidth: 800,
       innerHeight: 600,
@@ -69,11 +73,11 @@ test('NPC movement rejects a destination reserved earlier in the frame', () => {
     { get: (target, key) => key in target ? target[key] : () => {} },
   );
   const element = () => ({
-    style: {}, classList: { add() {}, remove() {} }, textContent: '',
+    style: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, textContent: '', focus() {},
     getBoundingClientRect: () => ({ left: 0, top: 0 }),
     addEventListener() {}, getContext: () => context2d,
   });
-  const elements = { game: element(), coords: element(), hint: element(), emote: element() };
+  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element() };
   const sandbox = {
     LittleAndroidLogic, console, Date, Math, setTimeout, clearTimeout,
     document: { hidden: false, getElementById: id => elements[id] },
@@ -100,11 +104,11 @@ test('interaction waits for a moving NPC to finish its tile step', () => {
     { get: (target, key) => key in target ? target[key] : () => {} },
   );
   const element = () => ({
-    style: {}, classList: { add() {}, remove() {} }, textContent: '',
+    style: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, textContent: '', focus() {},
     getBoundingClientRect: () => ({ left: 0, top: 0 }), addEventListener() {},
     getContext: () => context2d,
   });
-  const elements = { game: element(), coords: element(), hint: element(), emote: element() };
+  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element() };
   const sandbox = {
     LittleAndroidLogic, console, Date, Math, setTimeout, clearTimeout,
     document: { hidden: false, getElementById: id => elements[id] },
