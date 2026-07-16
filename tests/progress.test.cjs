@@ -47,18 +47,32 @@ test('progress normalizes lists and ignores unknown fields', () => {
   });
 });
 
+test('version one saves migrate resident discoveries', () => {
+  assert.deepEqual(parseProgress({
+    version: 1,
+    discoveredNPCs: ['OVERSEER'],
+    complete: true,
+  }), {
+    ...defaultProgress(),
+    discoveredNPCs: ['OVERSEER'],
+    complete: true,
+  });
+});
+
 test('daily progress restores only for the matching challenge date', () => {
   const completed = {
     ...defaultProgress(),
     challengeDate: '2026-07-15',
     discoveredFragments: ['field-coil'],
     collectedFragments: ['field-coil'],
+    discoveredNPCs: ['OVERSEER'],
     complete: true,
   };
   assert.deepEqual(scopeProgressToChallenge(completed, '2026-07-15'), completed);
   assert.deepEqual(scopeProgressToChallenge(completed, '2026-07-16'), {
     ...defaultProgress(),
     challengeDate: '2026-07-16',
+    discoveredNPCs: ['OVERSEER'],
   });
 });
 

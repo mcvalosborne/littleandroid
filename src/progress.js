@@ -28,7 +28,7 @@
     if (!raw) return defaultProgress();
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if (!parsed || parsed.version !== SAVE_VERSION) return defaultProgress();
+      if (!parsed || (parsed.version !== SAVE_VERSION && parsed.version !== 1)) return defaultProgress();
       return {
         version: SAVE_VERSION,
         challengeDate: typeof parsed.challengeDate === 'string' ? parsed.challengeDate : '',
@@ -53,7 +53,11 @@
   function scopeProgressToChallenge(progress, challengeDate) {
     const normalized = parseProgress(progress);
     if (normalized.challengeDate === challengeDate) return normalized;
-    return { ...defaultProgress(), challengeDate };
+    return {
+      ...defaultProgress(),
+      challengeDate,
+      discoveredNPCs: normalized.discoveredNPCs,
+    };
   }
 
   function saveProgress(storage, progress) {
