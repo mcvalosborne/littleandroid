@@ -2,7 +2,15 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { DIR, oppositeDir, createWorldMap, findPath } = require('../src/game-logic.js');
+const {
+  DIR,
+  oppositeDir,
+  createWorldMap,
+  findPath,
+  entityOccupiesTile,
+  isTileReserved,
+  tickTimedItems,
+} = require('../src/game-logic.js');
 
 test('direction helpers remain stable', () => {
   assert.deepEqual(DIR.north, { dx: 0, dy: -1 });
@@ -33,4 +41,25 @@ test('pathfinding routes around blocked tiles', () => {
 test('pathfinding chooses a nearby walkable target for scenery clicks', () => {
   const isWalkable = (x, y) => x === 1 && y === 2;
   assert.deepEqual(findPath(1, 2, 2, 2, isWalkable), [{ x: 1, y: 2 }]);
+});
+
+test('moving entities reserve their source and destination tiles', () => {
+  const moving = {
+    tileX: 9,
+    tileY: 11,
+    moving: true,
+    moveToX: 10,
+    moveToY: 11,
+  };
+  assert.equal(entityOccupiesTile(moving, 9, 11), true);
+  assert.equal(entityOccupiesTile(moving, 10, 11), true);
+  assert.equal(isTileReserved([moving], 10, 11), true);
+  assert.equal(isTileReserved([moving], 10, 11, moving), false);
+});
+
+test('timed labels use elapsed time instead of frame count', () => {
+  const items = [{ timer: 2 }, { timer: 0.25 }];
+  const remaining = tickTimedItems(items, 0.5);
+  assert.equal(remaining.length, 1);
+  assert.equal(remaining[0].timer, 1.5);
 });

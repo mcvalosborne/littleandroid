@@ -167,5 +167,36 @@
     return [];
   }
 
-  return Object.freeze({ DIR, oppositeDir, mulberry32, createWorldMap, findPath });
+  function entityOccupiesTile(entity, x, y) {
+    if (!entity) return false;
+    if (Math.round(entity.tileX) === x && Math.round(entity.tileY) === y) return true;
+    const inTransit = entity.moving || entity.state === 'WALKING';
+    return Boolean(
+      inTransit &&
+      Math.round(entity.moveToX) === x &&
+      Math.round(entity.moveToY) === y,
+    );
+  }
+
+  function isTileReserved(entities, x, y, excludedEntity = null) {
+    return entities.some(entity => (
+      entity !== excludedEntity && entityOccupiesTile(entity, x, y)
+    ));
+  }
+
+  function tickTimedItems(items, deltaSeconds) {
+    for (const item of items) item.timer -= deltaSeconds;
+    return items.filter(item => item.timer > 0);
+  }
+
+  return Object.freeze({
+    DIR,
+    oppositeDir,
+    mulberry32,
+    createWorldMap,
+    findPath,
+    entityOccupiesTile,
+    isTileReserved,
+    tickTimedItems,
+  });
 });

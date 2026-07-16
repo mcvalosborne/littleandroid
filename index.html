@@ -54,8 +54,13 @@ const TILE = 16;
 const TS = TILE * PX;
 let W, H, COLS, ROWS;
 function resize() {
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(W * pixelRatio);
+  canvas.height = Math.floor(H * pixelRatio);
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  ctx.imageSmoothingEnabled = false;
   COLS = Math.ceil(W / TS) + 2;
   ROWS = Math.ceil(H / TS) + 2;
 }
@@ -85,7 +90,15 @@ const DG0='#D8C8B0',DG1='#C0B098',DG2='#988870';
 // ══════════════════════════════════════════════════════
 // MAP (24x20 River Factory Zone)
 // ══════════════════════════════════════════════════════
-const { DIR, oppositeDir, createWorldMap, findPath: findWorldPath } = LittleAndroidLogic;
+const {
+  DIR,
+  oppositeDir,
+  createWorldMap,
+  findPath: findWorldPath,
+  entityOccupiesTile,
+  isTileReserved,
+  tickTimedItems,
+} = LittleAndroidLogic;
 const world = createWorldMap(77);
 const MW = world.width, MH = world.height, map = world.map;
 
@@ -95,11 +108,7 @@ function isWalkable(tx,ty){
   return t!==4&&t!==5&&t!==6&&t!==7&&t!==8&&t!==9&&t!==11&&t!==13&&t!==14&&t!==17;
 }
 function isTileOccupiedByNPC(tx,ty,excludeNPC){
-  for(const n of npcs){
-    if(n===excludeNPC)continue;
-    if(Math.round(n.tileX)===tx&&Math.round(n.tileY)===ty)return n;
-  }
-  return null;
+  return npcs.find(n => n !== excludeNPC && entityOccupiesTile(n, tx, ty)) || null;
 }
 
 // ══════════════════════════════════════════════════════
@@ -299,9 +308,9 @@ function npcStartMove(npc, dir, speed) {
   const tx = npc.tileX + d.dx, ty = npc.tileY + d.dy;
   if (!isWalkable(tx, ty)) return false;
   // Check if player is on target tile
-  if (Math.round(player.tileX) === tx && Math.round(player.tileY) === ty) return false;
+  if (entityOccupiesTile(player, tx, ty)) return false;
   // Check other NPCs
-  if (isTileOccupiedByNPC(tx, ty, npc)) return false;
+  if (isTileReserved(npcs, tx, ty, npc)) return false;
   npc.facing = dir;
   npc.moveFromX = npc.tileX; npc.moveFromY = npc.tileY;
   npc.moveToX = tx; npc.moveToY = ty;
@@ -550,6 +559,31 @@ function triggerNPCInteraction(npc) {
   }
 }
 
+function beginPlayerInteraction(npc) {
+  player.facing = dirToward(player.tileX, player.tileY, npc.tileX, npc.tileY);
+  player.state = 'INTERACTING';
+  player.interactTarget = npc;
+  player.interactArmTimer = 0.2;
+  triggerNPCInteraction(npc);
+}
+
+function requestPlayerInteraction(npc) {
+  if (!npc || npc.interacting) return false;
+  player.interactTarget = npc;
+  targetPath = [];
+  if (npc.moving) {
+    player.state = 'WAITING_INTERACTION';
+    return true;
+  }
+  const distance = Math.abs(npc.tileX - player.tileX) + Math.abs(npc.tileY - player.tileY);
+  if (distance !== 1) {
+    player.interactTarget = null;
+    return false;
+  }
+  beginPlayerInteraction(npc);
+  return true;
+}
+
 function endNPCInteraction(npc) {
   npc.interacting = false;
 
@@ -747,11 +781,7 @@ canvas.addEventListener('click', (e) => {
     const adj = isTileOccupiedByNPC(tileX, tileY, null);
     if (adj && Math.abs(tileX - player.tileX) + Math.abs(tileY - player.tileY) === 1) {
       // Trigger interaction
-      player.facing = dirToward(player.tileX, player.tileY, tileX, tileY);
-      player.state = 'INTERACTING';
-      player.interactTarget = adj;
-      player.interactArmTimer = 0.2; // 200ms arm raise
-      triggerNPCInteraction(adj);
+      requestPlayerInteraction(adj);
       return;
     }
   }
@@ -776,7 +806,7 @@ canvas.addEventListener('click', (e) => {
 const keysDown = {};
 window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
-  if (['w','a','s','d',' '].includes(k)) e.preventDefault();
+  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
   keysDown[k] = true;
 
   // Spacebar: action button / scan pulse
@@ -787,10 +817,7 @@ window.addEventListener('keydown', (e) => {
     const adj = isTileOccupiedByNPC(fx, fy, null);
     if (adj) {
       // Interact
-      player.state = 'INTERACTING';
-      player.interactTarget = adj;
-      player.interactArmTimer = 0.2;
-      triggerNPCInteraction(adj);
+      requestPlayerInteraction(adj);
     } else {
       // Scan pulse
       triggerScanPulse();
@@ -798,12 +825,15 @@ window.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('keyup', (e) => { keysDown[e.key.toLowerCase()] = false; });
+window.addEventListener('blur', () => {
+  for (const key of Object.keys(keysDown)) keysDown[key] = false;
+});
 
 function getWASDDirection() {
-  if (keysDown['w']) return 'north';
-  if (keysDown['s']) return 'south';
-  if (keysDown['a']) return 'west';
-  if (keysDown['d']) return 'east';
+  if (keysDown['w'] || keysDown['arrowup']) return 'north';
+  if (keysDown['s'] || keysDown['arrowdown']) return 'south';
+  if (keysDown['a'] || keysDown['arrowleft']) return 'west';
+  if (keysDown['d'] || keysDown['arrowright']) return 'east';
   return null;
 }
 
@@ -873,11 +903,7 @@ function update(dt) {
             const npcOnNext = isTileOccupiedByNPC(next.x, next.y, null);
             if (npcOnNext) {
               // Walk up to NPC, trigger interaction
-              player.facing = dirToward(player.tileX, player.tileY, next.x, next.y);
-              player.state = 'INTERACTING';
-              player.interactTarget = npcOnNext;
-              player.interactArmTimer = 0.2;
-              triggerNPCInteraction(npcOnNext);
+              requestPlayerInteraction(npcOnNext);
               targetPath = [];
             } else {
               const dir = dirToward(player.tileX, player.tileY, next.x, next.y);
@@ -937,6 +963,22 @@ function update(dt) {
       }
       break;
     }
+    case 'WAITING_INTERACTION': {
+      player.renderX = player.tileX;
+      player.renderY = player.tileY;
+      const target = player.interactTarget;
+      if (!target) {
+        player.state = 'IDLE';
+      } else if (!target.moving) {
+        const distance = Math.abs(target.tileX - player.tileX) + Math.abs(target.tileY - player.tileY);
+        if (distance === 1) beginPlayerInteraction(target);
+        else {
+          player.interactTarget = null;
+          player.state = 'IDLE';
+        }
+      }
+      break;
+    }
     case 'INTERACTING': {
       player.interactArmTimer -= dt;
       player.renderX = player.tileX;
@@ -957,6 +999,7 @@ function update(dt) {
 
   // ── Update all NPCs ──
   for (const npc of npcs) updateNPC(npc, dt);
+  scanLabels = tickTimedItems(scanLabels, dt);
 
   // ── Emote positioning ──
   if (emoteNPC) {
@@ -1077,8 +1120,6 @@ function render() {
   // Draw persistent scan labels above NPCs
   for (let i = scanLabels.length - 1; i >= 0; i--) {
     const sl = scanLabels[i];
-    sl.timer -= 1/60; // approximate dt
-    if (sl.timer <= 0) { scanLabels.splice(i, 1); continue; }
     const fadeAlpha = Math.min(1, sl.timer / 0.5); // fade out in last 0.5s
     const nx = sl.npc.renderX * TS - camX + TS/2;
     const ny = sl.npc.renderY * TS - camY - 4;
@@ -1118,6 +1159,11 @@ function render() {
 }
 
 function gameLoop(ts) {
+  if (document.hidden) {
+    lastTime = ts;
+    requestAnimationFrame(gameLoop);
+    return;
+  }
   const dt = Math.min((ts - lastTime) / 1000, 0.1);
   lastTime = ts;
   update(dt);
