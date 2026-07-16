@@ -19,7 +19,7 @@ function memoryStorage() {
   };
 }
 
-test('runtime initializes and renders a frame', () => {
+test('runtime initializes and renders a frame', async () => {
   const html = fs.readFileSync('index.html', 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   const listeners = {};
@@ -104,6 +104,12 @@ test('runtime initializes and renders a frame', () => {
   );
   listeners.close();
   assert.equal(listeners.canvasFocused, true);
+
+  sandbox.window.navigator = {
+    clipboard: { writeText: () => Promise.reject(new Error('denied')) },
+  };
+  await vm.runInContext('shareCompletion()', sandbox);
+  assert.match(elements.status.textContent, /I restored the Little Android factory/);
 
   const retrieval = vm.runInContext(`
     const fragment = signalFragments[0];
