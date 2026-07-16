@@ -108,13 +108,14 @@
     return { width, height, map };
   }
 
-  function findPath(startX, startY, endX, endY, isWalkable) {
+  function findPath(startX, startY, endX, endY, isWalkable, options = {}) {
     const sx = Math.round(startX);
     const sy = Math.round(startY);
     let ex = Math.round(endX);
     let ey = Math.round(endY);
 
     if (!isWalkable(ex, ey)) {
+      if (options.allowNearest === false) return [];
       let best = null;
       let bestDistance = Infinity;
       for (let dy = -3; dy <= 3; dy++) {

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const html = fs.readFileSync('index.html', 'utf8');
 const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
 
-if (!html.includes('<canvas id="game">')) {
+if (!/<canvas\b[^>]*\bid="game"[^>]*>/i.test(html)) {
   throw new Error('index.html must contain the game canvas');
 }
 if (!html.includes('src/game-logic.js')) {
