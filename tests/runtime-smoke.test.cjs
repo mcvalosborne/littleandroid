@@ -89,6 +89,35 @@ test('runtime initializes and renders a frame', () => {
   assert.equal(elements.game.width, 1600);
   assert.equal(elements.game.height, 1200);
 
+  const keyboardTargets = vm.runInContext(`({
+    game: shouldHandleGameKey(null),
+    canvas: shouldHandleGameKey({ closest: () => null }),
+    control: shouldHandleGameKey({ closest: () => ({}) }),
+  })`, sandbox);
+  assert.deepEqual(
+    { ...keyboardTargets },
+    { game: true, canvas: true, control: false },
+  );
+
+  const retrieval = vm.runInContext(`
+    const fragment = signalFragments[0];
+    player.tileX = fragment.x;
+    player.tileY = fragment.y - 1;
+    player.renderX = player.tileX;
+    player.renderY = player.tileY;
+    triggerScanPulse();
+    updateScanPulse(1);
+    playerStartMove('south');
+    const blocked = player.state;
+    player.state = 'IDLE';
+    performAction();
+    ({ discovered: fragment.discovered, blocked, collected: fragment.collected });
+  `, sandbox);
+  assert.deepEqual(
+    { ...retrieval },
+    { discovered: true, blocked: 'BLOCKED', collected: true },
+  );
+
   const completion = vm.runInContext(`
     for (const fragment of signalFragments) {
       fragment.discovered = true;
