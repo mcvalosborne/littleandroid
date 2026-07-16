@@ -37,6 +37,7 @@ test('progress normalizes lists and ignores unknown fields', () => {
   });
   assert.deepEqual(parsed, {
     version: 1,
+    generation: 0,
     discoveredFragments: ['a'],
     collectedFragments: ['a'],
     discoveredNPCs: ['scout'],
@@ -64,10 +65,22 @@ test('progress merges monotonically across stale tabs', () => {
     ...defaultProgress(),
     discoveredNPCs: ['OVERSEER'],
   };
-  assert.deepEqual(mergeProgress(firstTab, staleTab), {
+  assert.deepEqual(mergeProgress(firstTab, staleTab, ['field-coil']), {
     ...defaultProgress(),
     discoveredFragments: ['field-coil'],
     collectedFragments: ['field-coil'],
     discoveredNPCs: ['OVERSEER'],
+    complete: true,
   });
+});
+
+test('a newer reset generation defeats stale tab writes', () => {
+  const reset = { ...defaultProgress(), generation: 2 };
+  const stale = {
+    ...defaultProgress(),
+    generation: 1,
+    collectedFragments: ['field-coil'],
+    complete: true,
+  };
+  assert.deepEqual(mergeProgress(reset, stale, ['field-coil']), reset);
 });
