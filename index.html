@@ -32,9 +32,18 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
 #status{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);z-index:16;max-width:min(80vw,440px);padding:7px 10px;background:rgba(10,10,10,0.82);color:#E8C040;font:11px 'Silkscreen',monospace;text-align:center;opacity:0;transition:opacity .15s;pointer-events:none}
 #status.show{opacity:1}
 #quest{position:absolute;top:max(22px,env(safe-area-inset-top));right:max(22px,env(safe-area-inset-right));z-index:12;color:#E8C040;font:10px 'Silkscreen',monospace;text-shadow:1px 1px 0 #1a1510;pointer-events:none}
-#quest-reset{position:absolute;top:max(48px,calc(26px + env(safe-area-inset-top)));right:max(22px,env(safe-area-inset-right));z-index:20;display:none;width:34px;height:34px;border:1px solid #D4A030;border-radius:4px;background:rgba(10,10,10,.82);color:#E8C040;font:20px monospace;cursor:pointer}
+#quest-reset{position:absolute;top:max(88px,calc(66px + env(safe-area-inset-top)));right:max(22px,env(safe-area-inset-right));z-index:20;display:none;width:34px;height:34px;border:1px solid #D4A030;border-radius:4px;background:rgba(10,10,10,.82);color:#E8C040;font:20px monospace;cursor:pointer}
 #quest-reset.show{display:block}
 #quest-reset:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
+#journal-button{position:absolute;top:max(48px,calc(26px + env(safe-area-inset-top)));right:max(22px,env(safe-area-inset-right));z-index:20;width:42px;height:30px;border:1px solid #5A8848;border-radius:4px;background:rgba(10,10,10,.82);color:#A8C088;font:10px 'Silkscreen',monospace;cursor:pointer}
+#journal-button:focus-visible,#journal-close:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
+#journal-dialog{width:min(440px,calc(100vw - 32px));max-height:min(70vh,560px);padding:18px;border:2px solid #5A8848;border-radius:4px;background:#181820;color:#E8E0D0;font-family:'Silkscreen',monospace}
+#journal-dialog::backdrop{background:rgba(10,10,10,.75)}
+#journal-dialog h2{font-size:16px;color:#E8C040;margin-bottom:14px}
+#journal-list{display:grid;gap:9px;max-height:46vh;overflow:auto;font-size:11px;line-height:1.7;white-space:pre-line}
+.journal-entry{padding-bottom:7px;border-bottom:1px solid #383030;color:#B0A890}
+.journal-entry.found{color:#E8E0D0}
+#journal-close{margin-top:16px;padding:8px 12px;border:1px solid #D4A030;border-radius:4px;background:#181820;color:#E8C040;font:11px 'Silkscreen',monospace;cursor:pointer}
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 @media(max-width:600px){
   #ui-overlay{justify-content:flex-start;padding:calc(10px + env(safe-area-inset-top)) 10px 10px}
@@ -43,7 +52,8 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
   #title-bar .dot{width:6px;height:6px;flex:0 0 auto}
   #controls,#coords{display:none}
   #quest{top:calc(54px + env(safe-area-inset-top));right:12px;font-size:9px}
-  #quest-reset{top:calc(74px + env(safe-area-inset-top));right:12px}
+  #journal-button{top:calc(74px + env(safe-area-inset-top));right:12px}
+  #quest-reset{top:calc(112px + env(safe-area-inset-top));right:12px}
   #hint{bottom:max(88px,calc(68px + env(safe-area-inset-bottom)));width:70vw;font-size:10px;text-align:center}
   #action-button{display:block}
   #status{bottom:max(84px,calc(64px + env(safe-area-inset-bottom)));font-size:10px}
@@ -71,12 +81,19 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
   <div id="emote"></div>
   <div id="status" role="status" aria-live="polite"></div>
   <div id="quest" aria-live="polite">SIGNALS 0/3</div>
+  <button id="journal-button" type="button" aria-label="Open signal log">LOG</button>
   <button id="quest-reset" type="button" aria-label="Restart signal quest" title="Restart signal quest">↻</button>
   <button id="action-button" type="button" aria-label="Scan or interact">SCAN</button>
   <p class="sr-only" id="game-instructions">Move with WASD, arrow keys, or by selecting a destination. Press Space or Enter, or use the Scan button, to scan nearby residents or interact with the character you face.</p>
+  <dialog id="journal-dialog" aria-labelledby="journal-title">
+    <h2 id="journal-title">SIGNAL LOG</h2>
+    <div id="journal-list"></div>
+    <button id="journal-close" type="button">CLOSE</button>
+  </dialog>
 </div>
 <script src="src/game-logic.js"></script>
 <script src="src/game-content.js"></script>
+<script src="src/progress.js"></script>
 <script>
 // ══════════════════════════════════════════════════════
 // SETUP
@@ -90,6 +107,10 @@ const statusEl = document.getElementById('status');
 const actionButton = document.getElementById('action-button');
 const questEl = document.getElementById('quest');
 const questResetButton = document.getElementById('quest-reset');
+const journalButton = document.getElementById('journal-button');
+const journalDialog = document.getElementById('journal-dialog');
+const journalList = document.getElementById('journal-list');
+const journalClose = document.getElementById('journal-close');
 
 const PX = 3;
 const TILE = 16;
@@ -148,7 +169,18 @@ const signalFragments = LittleAndroidContent.SIGNAL_FRAGMENTS.map(fragment => ({
   discovered: false,
   collected: false,
 }));
-const quest = { complete: false };
+let progressStorage = null;
+try { progressStorage = window.localStorage; } catch {}
+const savedProgress = LittleAndroidProgress.loadProgress(progressStorage);
+let progressGeneration = savedProgress.generation;
+for (const fragment of signalFragments) {
+  fragment.discovered = savedProgress.discoveredFragments.includes(fragment.id);
+  fragment.collected = savedProgress.collectedFragments.includes(fragment.id);
+}
+const discoveredNPCs = new Set(savedProgress.discoveredNPCs);
+const quest = {
+  complete: savedProgress.complete || signalFragments.every(fragment => fragment.collected),
+};
 
 function isWalkable(tx,ty){
   if(tx<0||ty<0||tx>=MW||ty>=MH)return false;
@@ -616,7 +648,9 @@ function beginPlayerInteraction(npc) {
   player.interactTarget = npc;
   player.interactArmTimer = 0.2;
   triggerNPCInteraction(npc);
-  showStatus(`LINK: ${npc.scanLabel || npc.type.toUpperCase()}`);
+  rememberNPC(npc);
+  const dialogue = LittleAndroidContent.NPC_DIALOGUE[npc.type];
+  showStatus(dialogue ? (quest.complete ? dialogue.complete : dialogue.active) : `LINK: ${npc.scanLabel || npc.type.toUpperCase()}`, 3.5);
 }
 
 function requestPlayerInteraction(npc) {
@@ -866,7 +900,13 @@ canvas.addEventListener('click', (e) => {
 
 // ── WASD Keyboard Movement ──
 const keysDown = {};
+function shouldHandleGameKey(target) {
+  return !target || typeof target.closest !== 'function' ||
+    !target.closest('button, dialog, input, select, textarea, a[href]');
+}
+
 window.addEventListener('keydown', (e) => {
+  if (!shouldHandleGameKey(e.target)) return;
   const k = e.key.toLowerCase();
   if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' ','enter'].includes(k)) e.preventDefault();
   keysDown[k] = true;
@@ -923,6 +963,57 @@ function updateQuestUI() {
   questResetButton.classList.toggle('show', quest.complete);
 }
 
+function currentProgress() {
+  return {
+    version: LittleAndroidProgress.SAVE_VERSION,
+    generation: progressGeneration,
+    discoveredFragments: signalFragments.filter(fragment => fragment.discovered).map(fragment => fragment.id),
+    collectedFragments: signalFragments.filter(fragment => fragment.collected).map(fragment => fragment.id),
+    discoveredNPCs: [...discoveredNPCs],
+    complete: quest.complete,
+  };
+}
+
+function persistProgress() {
+  const latest = LittleAndroidProgress.loadProgress(progressStorage);
+  const merged = LittleAndroidProgress.mergeProgress(
+    latest,
+    currentProgress(),
+    signalFragments.map(fragment => fragment.id),
+  );
+  progressGeneration = merged.generation;
+  for (const fragment of signalFragments) {
+    fragment.discovered = merged.discoveredFragments.includes(fragment.id);
+    fragment.collected = merged.collectedFragments.includes(fragment.id);
+  }
+  discoveredNPCs.clear();
+  for (const identity of merged.discoveredNPCs) discoveredNPCs.add(identity);
+  quest.complete = merged.complete;
+  document.body.classList.toggle('world-restored', quest.complete);
+  updateQuestUI();
+  LittleAndroidProgress.saveProgress(progressStorage, merged);
+  return merged;
+}
+
+function rememberNPC(npc) {
+  const identity = npc.scanLabel || npc.type.toUpperCase();
+  if (discoveredNPCs.has(identity)) return;
+  discoveredNPCs.add(identity);
+  persistProgress();
+  updateJournal();
+}
+
+function updateJournal() {
+  const fragmentLines = signalFragments.map(fragment => (
+    `${fragment.collected ? '[OK]' : fragment.discovered ? '[  ]' : '[??]'} ${fragment.discovered ? fragment.name : 'UNKNOWN SIGNAL'}`
+  ));
+  const npcLines = npcs.map(npc => {
+    const identity = npc.scanLabel || npc.type.toUpperCase();
+    return `${discoveredNPCs.has(identity) ? '[ID]' : '[??]'} ${discoveredNPCs.has(identity) ? identity : 'UNKNOWN RESIDENT'}`;
+  });
+  journalList.textContent = `COMPONENTS\n${fragmentLines.join('\n')}\n\nRESIDENTS\n${npcLines.join('\n')}`;
+}
+
 function collectFragment(fragment) {
   if (!fragment || fragment.collected) return false;
   fragment.collected = true;
@@ -935,6 +1026,8 @@ function collectFragment(fragment) {
     showStatus(`${fragment.name} RECOVERED · ${collected}/${signalFragments.length}`, 2.5);
   }
   updateQuestUI();
+  persistProgress();
+  updateJournal();
   return true;
 }
 
@@ -947,15 +1040,32 @@ function resetQuest() {
     showStatus('CLEAR SIGNAL SITES BEFORE RESTART', 2.5);
     return false;
   }
+  scanPulse = null;
+  scanLabels = [];
+  scanCooldownTimer = 0;
   for (const fragment of signalFragments) {
     fragment.discovered = false;
     fragment.collected = false;
   }
+  discoveredNPCs.clear();
   quest.complete = false;
   document.body.classList.remove('world-restored');
+  const storedGeneration = LittleAndroidProgress.loadProgress(progressStorage).generation;
+  progressGeneration = Math.max(progressGeneration, storedGeneration) + 1;
+  LittleAndroidProgress.saveProgress(progressStorage, currentProgress());
   updateQuestUI();
+  updateJournal();
   showStatus('SIGNAL SEARCH RESTARTED', 2);
   return true;
+}
+
+function requestQuestReset(confirmReset) {
+  const message = 'Restart the journey? Recovered signals and the resident log will be cleared.';
+  const confirmed = typeof confirmReset === 'function' ?
+    confirmReset(message) :
+    typeof window.confirm === 'function' && window.confirm(message);
+  if (!confirmed) return false;
+  return resetQuest();
 }
 
 function performAction() {
@@ -974,7 +1084,13 @@ actionButton.addEventListener('click', () => {
   canvas.focus({ preventScroll: true });
   performAction();
 });
-questResetButton.addEventListener('click', resetQuest);
+questResetButton.addEventListener('click', () => requestQuestReset());
+journalButton.addEventListener('click', () => {
+  updateJournal();
+  journalDialog.showModal();
+});
+journalClose.addEventListener('click', () => journalDialog.close());
+journalDialog.addEventListener('close', () => canvas.focus({ preventScroll: true }));
 
 let statusTimer = 0;
 function showStatus(message, duration = 1.5) {
@@ -1037,6 +1153,8 @@ function updateScanPulse(dt) {
     );
     if (distance >= previousRadius && distance <= radius) {
       fragment.discovered = true;
+      persistProgress();
+      updateJournal();
       showStatus(`SIGNAL FOUND: ${fragment.name}`, 2.5);
     }
   }
@@ -1305,6 +1423,7 @@ function render() {
           if (!scanLabels.find(s => s.npc === npc)) {
             scanLabels.push({ npc, timer: 2.0 }); // 2 seconds visible
           }
+          rememberNPC(npc);
         }
       }
   }
@@ -1381,7 +1500,13 @@ function gameLoop(ts) {
   requestAnimationFrame(gameLoop);
 }
 updateQuestUI();
-showStatus('OBJECTIVE: LOCATE 3 SIGNALS', 4);
+updateJournal();
+if (quest.complete) {
+  document.body.classList.add('world-restored');
+  showStatus('FACTORY LINK RESTORED', 3);
+} else {
+  showStatus('OBJECTIVE: LOCATE 3 SIGNALS', 4);
+}
 requestAnimationFrame((t) => { lastTime = t; gameLoop(t); });
 </script>
 </body>
