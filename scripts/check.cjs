@@ -20,6 +20,9 @@ if (!html.includes('src/progress.js')) {
 if (!html.includes('src/feedback.js')) {
   throw new Error('index.html must load the feedback module');
 }
+if (!html.includes('#ui-overlay button{pointer-events:auto}')) {
+  throw new Error('Overlay controls must accept pointer input');
+}
 if (inlineScripts.length !== 1) {
   throw new Error(`Expected one inline runtime script, found ${inlineScripts.length}`);
 }
