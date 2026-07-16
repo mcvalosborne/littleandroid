@@ -60,6 +60,12 @@
     try { state = parseMetrics(storage && storage.getItem(METRICS_KEY)); }
     catch { state = { counters: {} }; }
 
+    function reload() {
+      try { state = parseMetrics(storage && storage.getItem(METRICS_KEY)); }
+      catch { state = { counters: {} }; }
+      return state;
+    }
+
     function persist() {
       try {
         if (storage) storage.setItem(METRICS_KEY, JSON.stringify(state));
@@ -67,12 +73,14 @@
     }
 
     function increment(name) {
+      reload();
       state.counters[name] = (state.counters[name] || 0) + 1;
       persist();
       return state.counters[name];
     }
 
     function markOnce(name) {
+      reload();
       if (state.counters[name]) return false;
       state.counters[name] = 1;
       persist();
@@ -82,7 +90,7 @@
     return Object.freeze({
       increment,
       markOnce,
-      snapshot: () => JSON.parse(JSON.stringify(state)),
+      snapshot: () => JSON.parse(JSON.stringify(reload())),
     });
   }
 

@@ -31,12 +31,14 @@ test('daily challenges are deterministic and retain every fragment', () => {
 });
 
 test('local metrics count without storing event payloads', () => {
-  const metrics = createLocalMetrics(memoryStorage());
-  assert.equal(metrics.increment('sessions'), 1);
-  assert.equal(metrics.increment('sessions'), 2);
-  assert.equal(metrics.markOnce('first_scan'), true);
-  assert.equal(metrics.markOnce('first_scan'), false);
-  assert.deepEqual(metrics.snapshot(), { counters: { sessions: 2, first_scan: 1 } });
+  const storage = memoryStorage();
+  const firstTab = createLocalMetrics(storage);
+  const secondTab = createLocalMetrics(storage);
+  assert.equal(firstTab.increment('sessions'), 1);
+  assert.equal(secondTab.increment('sessions'), 2);
+  assert.equal(firstTab.markOnce('first_scan'), true);
+  assert.equal(secondTab.markOnce('first_scan'), false);
+  assert.deepEqual(firstTab.snapshot(), { counters: { sessions: 2, first_scan: 1 } });
   assert.deepEqual(parseMetrics('{bad'), { counters: {} });
 });
 
