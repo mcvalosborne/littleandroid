@@ -213,9 +213,10 @@ function playerStartMove(dir) {
   const tx = player.tileX + d.dx, ty = player.tileY + d.dy;
   player.facing = dir;
 
-  // Check NPC on target tile
+  // Interaction targets reserve their tile so the player stops facing them.
   const npcOnTile = isTileOccupiedByNPC(tx, ty, null);
-  if (npcOnTile || !isWalkable(tx, ty)) {
+  const fragmentOnTile = getUncollectedFragmentAt(tx, ty);
+  if (npcOnTile || fragmentOnTile || !isWalkable(tx, ty)) {
     // BLOCKED
     player.state = 'BLOCKED';
     player.bumpDir = dir;
@@ -806,7 +807,8 @@ function drawNPC(npc, sx, sy) {
 // PATHFINDING
 // ══════════════════════════════════════════════════════
 function findPath(sx,sy,ex,ey){
-  return findWorldPath(sx, sy, ex, ey, isWalkable, { allowNearest: false });
+  const isPlayerWalkable = (x, y) => isWalkable(x, y) && !getUncollectedFragmentAt(x, y);
+  return findWorldPath(sx, sy, ex, ey, isPlayerWalkable, { allowNearest: false });
 }
 
 // ══════════════════════════════════════════════════════
@@ -827,6 +829,12 @@ canvas.addEventListener('click', (e) => {
 
   // Check if clicking adjacent NPC while idle
   if (player.state === 'IDLE') {
+    const fragment = getUncollectedFragmentAt(tileX, tileY);
+    if (fragment && Math.abs(tileX - player.tileX) + Math.abs(tileY - player.tileY) === 1) {
+      player.facing = dirToward(player.tileX, player.tileY, tileX, tileY);
+      collectFragment(fragment);
+      return;
+    }
     const adj = isTileOccupiedByNPC(tileX, tileY, null);
     if (adj && Math.abs(tileX - player.tileX) + Math.abs(tileY - player.tileY) === 1) {
       // Trigger interaction
@@ -889,6 +897,12 @@ function getFacingFragment() {
   const direction = DIR[player.facing];
   const x = player.tileX + direction.dx;
   const y = player.tileY + direction.dy;
+  return signalFragments.find(fragment => (
+    fragment.discovered && !fragment.collected && fragment.x === x && fragment.y === y
+  )) || null;
+}
+
+function getUncollectedFragmentAt(x, y) {
   return signalFragments.find(fragment => (
     fragment.discovered && !fragment.collected && fragment.x === x && fragment.y === y
   )) || null;
@@ -979,8 +993,7 @@ function triggerScanPulse() {
   }
   scanPulse = {
     x: player.tileX, y: player.tileY,
-    time: Date.now(),
-    radius: 0,
+    elapsed: 0,
     maxRadius: 6 * TS, // 6 tiles radius
     duration: 800, // ms
   };
@@ -992,6 +1005,27 @@ function triggerScanPulse() {
   return true;
 }
 
+function updateScanPulse(dt) {
+  if (!scanPulse) return;
+  const previousRadius = (scanPulse.elapsed / scanPulse.duration) * scanPulse.maxRadius;
+  scanPulse.elapsed = Math.min(scanPulse.duration, scanPulse.elapsed + dt * 1000);
+  const radius = (scanPulse.elapsed / scanPulse.duration) * scanPulse.maxRadius;
+
+  for (const fragment of signalFragments) {
+    if (fragment.discovered || fragment.collected) continue;
+    const distance = Math.hypot(
+      (fragment.x - scanPulse.x) * TS,
+      (fragment.y - scanPulse.y) * TS,
+    );
+    if (distance >= previousRadius && distance <= radius) {
+      fragment.discovered = true;
+      showStatus(`SIGNAL FOUND: ${fragment.name}`, 2.5);
+    }
+  }
+
+  if (scanPulse.elapsed >= scanPulse.duration) scanPulse = null;
+}
+
 // ══════════════════════════════════════════════════════
 // GAME LOOP
 // ══════════════════════════════════════════════════════
@@ -1000,6 +1034,7 @@ let lastTime = 0;
 function update(dt) {
   // Scan cooldown
   if (scanCooldownTimer > 0) scanCooldownTimer -= dt;
+  updateScanPulse(dt);
   if (statusTimer > 0) {
     statusTimer -= dt;
     if (statusTimer <= 0) {
@@ -1214,10 +1249,7 @@ function render() {
 
   // Scan pulse effect
   if (scanPulse) {
-    const age = (Date.now() - scanPulse.time) / scanPulse.duration;
-    if (age >= 1) {
-      scanPulse = null;
-    } else {
+    const age = scanPulse.elapsed / scanPulse.duration;
       const cx = scanPulse.x * TS - camX + TS/2;
       const cy = scanPulse.y * TS - camY + TS/2;
       const radius = age * scanPulse.maxRadius;
@@ -1257,17 +1289,6 @@ function render() {
           }
         }
       }
-      for (const fragment of signalFragments) {
-        if (fragment.discovered || fragment.collected) continue;
-        const fragmentX = fragment.x * TS - camX + TS/2;
-        const fragmentY = fragment.y * TS - camY + TS/2;
-        const distance = Math.hypot(fragmentX - cx, fragmentY - cy);
-        if (distance < radius && distance > radius - TS * 2) {
-          fragment.discovered = true;
-          showStatus(`SIGNAL FOUND: ${fragment.name}`, 2.5);
-        }
-      }
-    }
   }
 
   // Discovered signal fragments
