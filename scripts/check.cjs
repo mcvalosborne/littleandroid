@@ -11,11 +11,18 @@ if (!/<canvas\b[^>]*\bid="game"[^>]*>/i.test(html)) {
 if (!html.includes('src/game-logic.js')) {
   throw new Error('index.html must load the shared game logic');
 }
+if (!html.includes('src/game-content.js')) {
+  throw new Error('index.html must load the shared game content');
+}
+if (!html.includes('#ui-overlay button{pointer-events:auto}')) {
+  throw new Error('Overlay controls must accept pointer input');
+}
 if (inlineScripts.length !== 1) {
   throw new Error(`Expected one inline runtime script, found ${inlineScripts.length}`);
 }
 
 new Function(inlineScripts[0][1]);
 require('../src/game-logic.js');
+require('../src/game-content.js');
 
 console.log('Static checks passed.');
