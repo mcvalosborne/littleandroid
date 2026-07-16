@@ -14,6 +14,9 @@ if (!html.includes('src/game-logic.js')) {
 if (!html.includes('src/game-content.js')) {
   throw new Error('index.html must load the shared game content');
 }
+if (!html.includes('src/progress.js')) {
+  throw new Error('index.html must load the progress module');
+}
 if (inlineScripts.length !== 1) {
   throw new Error(`Expected one inline runtime script, found ${inlineScripts.length}`);
 }
@@ -21,5 +24,6 @@ if (inlineScripts.length !== 1) {
 new Function(inlineScripts[0][1]);
 require('../src/game-logic.js');
 require('../src/game-content.js');
+require('../src/progress.js');
 
 console.log('Static checks passed.');

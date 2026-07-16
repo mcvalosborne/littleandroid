@@ -6,6 +6,16 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const LittleAndroidLogic = require('../src/game-logic.js');
 const LittleAndroidContent = require('../src/game-content.js');
+const LittleAndroidProgress = require('../src/progress.js');
+
+function memoryStorage() {
+  const values = new Map();
+  return {
+    getItem: key => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  };
+}
 
 test('runtime initializes and renders a frame', () => {
   const html = fs.readFileSync('index.html', 'utf8');
@@ -22,6 +32,8 @@ test('runtime initializes and renders a frame', () => {
     setAttribute() {},
     textContent: '',
     focus() {},
+    showModal() {},
+    close() {},
     getBoundingClientRect: () => ({ left: 0, top: 0 }),
     addEventListener: (name, handler) => { listeners[name] = handler; },
     getContext: () => context2d,
@@ -35,10 +47,15 @@ test('runtime initializes and renders a frame', () => {
     'action-button': element(),
     quest: element(),
     'quest-reset': element(),
+    'journal-button': element(),
+    'journal-dialog': element(),
+    'journal-list': element(),
+    'journal-close': element(),
   };
   const sandbox = {
     LittleAndroidLogic,
     LittleAndroidContent,
+    LittleAndroidProgress,
     console,
     Date,
     Math,
@@ -51,6 +68,7 @@ test('runtime initializes and renders a frame', () => {
       innerWidth: 800,
       innerHeight: 600,
       devicePixelRatio: 2,
+      localStorage: memoryStorage(),
       addEventListener: (name, handler) => { listeners[`window:${name}`] = handler; },
     },
     requestAnimationFrame: handler => { nextFrame = handler; },
@@ -87,15 +105,15 @@ test('NPC movement rejects a destination reserved earlier in the frame', () => {
     { get: (target, key) => key in target ? target[key] : () => {} },
   );
   const element = () => ({
-    style: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, textContent: '', focus() {},
+    style: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, textContent: '', focus() {}, showModal() {}, close() {},
     getBoundingClientRect: () => ({ left: 0, top: 0 }),
     addEventListener() {}, getContext: () => context2d,
   });
-  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element() };
+  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element() };
   const sandbox = {
-    LittleAndroidLogic, LittleAndroidContent, console, Date, Math, setTimeout, clearTimeout,
+    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, console, Date, Math, setTimeout, clearTimeout,
     document: { hidden: false, body: element(), getElementById: id => elements[id] },
-    window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, addEventListener() {} },
+    window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, localStorage: memoryStorage(), addEventListener() {} },
     requestAnimationFrame() {},
   };
   vm.createContext(sandbox);
@@ -118,15 +136,15 @@ test('interaction waits for a moving NPC to finish its tile step', () => {
     { get: (target, key) => key in target ? target[key] : () => {} },
   );
   const element = () => ({
-    style: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, textContent: '', focus() {},
+    style: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, textContent: '', focus() {}, showModal() {}, close() {},
     getBoundingClientRect: () => ({ left: 0, top: 0 }), addEventListener() {},
     getContext: () => context2d,
   });
-  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element() };
+  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element() };
   const sandbox = {
-    LittleAndroidLogic, LittleAndroidContent, console, Date, Math, setTimeout, clearTimeout,
+    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, console, Date, Math, setTimeout, clearTimeout,
     document: { hidden: false, body: element(), getElementById: id => elements[id] },
-    window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, addEventListener() {} },
+    window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, localStorage: memoryStorage(), addEventListener() {} },
     requestAnimationFrame() {},
   };
   vm.createContext(sandbox);
