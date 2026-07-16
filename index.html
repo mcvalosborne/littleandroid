@@ -1040,6 +1040,9 @@ function resetQuest() {
     showStatus('CLEAR SIGNAL SITES BEFORE RESTART', 2.5);
     return false;
   }
+  scanPulse = null;
+  scanLabels = [];
+  scanCooldownTimer = 0;
   for (const fragment of signalFragments) {
     fragment.discovered = false;
     fragment.collected = false;
