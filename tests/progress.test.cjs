@@ -48,14 +48,23 @@ test('progress normalizes lists and ignores unknown fields', () => {
 });
 
 test('version one saves migrate resident discoveries', () => {
-  assert.deepEqual(parseProgress({
+  const migrated = parseProgress({
     version: 1,
+    discoveredFragments: ['field-coil'],
+    collectedFragments: ['field-coil'],
     discoveredNPCs: ['OVERSEER'],
     complete: true,
-  }), {
+  });
+  assert.deepEqual(migrated, {
     ...defaultProgress(),
+    discoveredFragments: ['field-coil'],
+    collectedFragments: ['field-coil'],
     discoveredNPCs: ['OVERSEER'],
     complete: true,
+  });
+  assert.deepEqual(scopeProgressToChallenge(migrated, '2026-07-16'), {
+    ...migrated,
+    challengeDate: '2026-07-16',
   });
 });
 

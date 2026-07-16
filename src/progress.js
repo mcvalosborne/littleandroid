@@ -52,6 +52,7 @@
 
   function scopeProgressToChallenge(progress, challengeDate) {
     const normalized = parseProgress(progress);
+    if (!normalized.challengeDate) return { ...normalized, challengeDate };
     if (normalized.challengeDate === challengeDate) return normalized;
     return {
       ...defaultProgress(),

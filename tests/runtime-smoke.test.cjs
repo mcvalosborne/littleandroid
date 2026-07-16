@@ -56,6 +56,7 @@ test('runtime initializes and renders a frame', () => {
     'sound-button': element(),
     'share-button': element(),
   };
+  elements.game.focus = () => { listeners.canvasFocused = true; };
   const sandbox = {
     LittleAndroidLogic,
     LittleAndroidContent,
@@ -101,6 +102,8 @@ test('runtime initializes and renders a frame', () => {
     { ...keyboardTargets },
     { game: true, canvas: true, control: false },
   );
+  listeners.close();
+  assert.equal(listeners.canvasFocused, true);
 
   const retrieval = vm.runInContext(`
     const fragment = signalFragments[0];
@@ -108,17 +111,20 @@ test('runtime initializes and renders a frame', () => {
     player.tileY = fragment.y - 1;
     player.renderX = player.tileX;
     player.renderY = player.tileY;
+    playerStartMove('south');
+    const hiddenBlocked = player.state;
+    player.state = 'IDLE';
     triggerScanPulse();
     updateScanPulse(1);
     playerStartMove('south');
     const blocked = player.state;
     player.state = 'IDLE';
     performAction();
-    ({ discovered: fragment.discovered, blocked, collected: fragment.collected });
+    ({ discovered: fragment.discovered, hiddenBlocked, blocked, collected: fragment.collected });
   `, sandbox);
   assert.deepEqual(
     { ...retrieval },
-    { discovered: true, blocked: 'BLOCKED', collected: true },
+    { discovered: true, hiddenBlocked: 'BLOCKED', blocked: 'BLOCKED', collected: true },
   );
 
   const resetBehavior = vm.runInContext(`
@@ -142,6 +148,17 @@ test('runtime initializes and renders a frame', () => {
   `, sandbox);
   assert.deepEqual({ ...completion }, { complete: true, collected: 3 });
   assert.match(elements.quest.textContent, /^FACTORY ONLINE · D\d{4}$/);
+
+  const replay = vm.runInContext(`
+    player.tileX = signalFragments[0].x;
+    player.tileY = signalFragments[0].y;
+    const replayRefused = resetQuest();
+    player.tileX = 4;
+    player.tileY = 6;
+    const replayAccepted = resetQuest();
+    ({ refused: replayRefused, accepted: replayAccepted, collected: signalFragments.filter(fragment => fragment.collected).length });
+  `, sandbox);
+  assert.deepEqual({ ...replay }, { refused: false, accepted: true, collected: 0 });
 });
 
 test('NPC movement rejects a destination reserved earlier in the frame', () => {
