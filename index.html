@@ -215,12 +215,13 @@ function playerStartMove(dir) {
 
   // Interaction targets reserve their tile so the player stops facing them.
   const npcOnTile = isTileOccupiedByNPC(tx, ty, null);
-  const fragmentOnTile = getUncollectedFragmentAt(tx, ty);
+  const fragmentOnTile = getActiveFragmentAt(tx, ty);
   if (npcOnTile || fragmentOnTile || !isWalkable(tx, ty)) {
     // BLOCKED
     player.state = 'BLOCKED';
     player.bumpDir = dir;
     player.bumpProgress = 0;
+    if (fragmentOnTile && !fragmentOnTile.discovered) showStatus('SIGNAL INTERFERENCE · SCAN');
     return;
   }
 
@@ -808,7 +809,7 @@ function drawNPC(npc, sx, sy) {
 // PATHFINDING
 // ══════════════════════════════════════════════════════
 function findPath(sx,sy,ex,ey){
-  const isPlayerWalkable = (x, y) => isWalkable(x, y) && !getUncollectedFragmentAt(x, y);
+  const isPlayerWalkable = (x, y) => isWalkable(x, y) && !getActiveFragmentAt(x, y);
   return findWorldPath(sx, sy, ex, ey, isPlayerWalkable, { allowNearest: false });
 }
 
@@ -937,6 +938,14 @@ function collectFragment(fragment) {
 }
 
 function resetQuest() {
+  const occupiedSignalSite = signalFragments.some(fragment => (
+    entityOccupiesTile(player, fragment.x, fragment.y) ||
+    isTileReserved(npcs, fragment.x, fragment.y, null)
+  ));
+  if (occupiedSignalSite) {
+    showStatus('CLEAR SIGNAL SITES BEFORE RESTART', 2.5);
+    return false;
+  }
   for (const fragment of signalFragments) {
     fragment.discovered = false;
     fragment.collected = false;
@@ -945,6 +954,7 @@ function resetQuest() {
   document.body.classList.remove('world-restored');
   updateQuestUI();
   showStatus('SIGNAL SEARCH RESTARTED', 2);
+  return true;
 }
 
 function performAction() {
