@@ -8,6 +8,7 @@ const LittleAndroidLogic = require('../src/game-logic.js');
 const LittleAndroidContent = require('../src/game-content.js');
 const LittleAndroidProgress = require('../src/progress.js');
 const LittleAndroidFeedback = require('../src/feedback.js');
+const LittleAndroidEngagement = require('../src/engagement.js');
 
 function memoryStorage() {
   const values = new Map();
@@ -53,12 +54,14 @@ test('runtime initializes and renders a frame', () => {
     'journal-list': element(),
     'journal-close': element(),
     'sound-button': element(),
+    'share-button': element(),
   };
   const sandbox = {
     LittleAndroidLogic,
     LittleAndroidContent,
     LittleAndroidProgress,
     LittleAndroidFeedback,
+    LittleAndroidEngagement,
     console,
     Date,
     Math,
@@ -97,7 +100,7 @@ test('runtime initializes and renders a frame', () => {
     ({ complete: quest.complete, collected: signalFragments.filter(fragment => fragment.collected).length });
   `, sandbox);
   assert.deepEqual({ ...completion }, { complete: true, collected: 3 });
-  assert.equal(elements.quest.textContent, 'FACTORY ONLINE');
+  assert.match(elements.quest.textContent, /^FACTORY ONLINE · D\d{4}$/);
 });
 
 test('NPC movement rejects a destination reserved earlier in the frame', () => {
@@ -112,9 +115,9 @@ test('NPC movement rejects a destination reserved earlier in the frame', () => {
     getBoundingClientRect: () => ({ left: 0, top: 0 }),
     addEventListener() {}, getContext: () => context2d,
   });
-  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element() };
+  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element(), 'share-button': element() };
   const sandbox = {
-    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, console, Date, Math, setTimeout, clearTimeout,
+    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, LittleAndroidEngagement, console, Date, Math, setTimeout, clearTimeout,
     document: { hidden: false, body: element(), getElementById: id => elements[id] },
     window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, localStorage: memoryStorage(), addEventListener() {} },
     requestAnimationFrame() {},
@@ -143,9 +146,9 @@ test('interaction waits for a moving NPC to finish its tile step', () => {
     getBoundingClientRect: () => ({ left: 0, top: 0 }), addEventListener() {},
     getContext: () => context2d,
   });
-  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element() };
+  const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element(), 'share-button': element() };
   const sandbox = {
-    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, console, Date, Math, setTimeout, clearTimeout,
+    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, LittleAndroidEngagement, console, Date, Math, setTimeout, clearTimeout,
     document: { hidden: false, body: element(), getElementById: id => elements[id] },
     window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, localStorage: memoryStorage(), addEventListener() {} },
     requestAnimationFrame() {},
