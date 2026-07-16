@@ -23,7 +23,7 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
 @keyframes fadeHint{0%,100%{opacity:0.6}50%{opacity:0.2}}
 #controls{position:absolute;bottom:20px;left:20px;pointer-events:none;z-index:10;font-family:'Silkscreen',monospace;font-size:9px;color:#8A9870;line-height:1.8;text-shadow:1px 1px 0px #1a1510;opacity:0.7}
 #controls .key{display:inline-block;background:rgba(90,136,72,0.15);border:1px solid rgba(90,136,72,0.3);border-radius:3px;padding:1px 5px;font-family:'Press Start 2P',monospace;font-size:7px;color:#A8C088;margin-right:4px;vertical-align:middle}
-#coords{position:absolute;bottom:24px;right:24px;font-family:'Press Start 2P',monospace;font-size:8px;color:#5A8848;pointer-events:none;z-index:10}
+#coords{position:absolute;bottom:24px;right:76px;font-family:'Press Start 2P',monospace;font-size:8px;color:#5A8848;pointer-events:none;z-index:10}
 #emote{position:absolute;pointer-events:none;z-index:15;font-size:24px;transition:transform 0.15s ease-out,opacity 0.15s;transform:scale(0);opacity:0}
 #emote.show{transform:scale(1);opacity:1}
 #action-button{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:20;display:none;min-width:72px;height:52px;padding:0 12px;border:2px solid #D4A030;border-radius:4px;background:rgba(10,10,10,0.88);color:#E8C040;font:700 12px 'Silkscreen',monospace;cursor:pointer;box-shadow:0 0 18px rgba(212,160,48,0.2)}
@@ -37,6 +37,9 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
 #quest-reset:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
 #journal-button{position:absolute;top:max(48px,calc(26px + env(safe-area-inset-top)));right:max(22px,env(safe-area-inset-right));z-index:20;width:42px;height:30px;border:1px solid #5A8848;border-radius:4px;background:rgba(10,10,10,.82);color:#A8C088;font:10px 'Silkscreen',monospace;cursor:pointer}
 #journal-button:focus-visible,#journal-close:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
+#sound-button{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:20;width:38px;height:34px;border:1px solid #5A8848;border-radius:4px;background:rgba(10,10,10,.82);color:#A8C088;font:18px monospace;cursor:pointer}
+#sound-button:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
+#sound-button.muted{color:#787070;border-color:#585050}
 #journal-dialog{width:min(440px,calc(100vw - 32px));max-height:min(70vh,560px);padding:18px;border:2px solid #5A8848;border-radius:4px;background:#181820;color:#E8E0D0;font-family:'Silkscreen',monospace}
 #journal-dialog::backdrop{background:rgba(10,10,10,.75)}
 #journal-dialog h2{font-size:16px;color:#E8C040;margin-bottom:14px}
@@ -56,10 +59,13 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
   #quest-reset{top:calc(112px + env(safe-area-inset-top));right:12px}
   #hint{bottom:max(88px,calc(68px + env(safe-area-inset-bottom)));width:70vw;font-size:10px;text-align:center}
   #action-button{display:block}
+  #sound-button{right:max(104px,calc(104px + env(safe-area-inset-right)));bottom:max(28px,calc(28px + env(safe-area-inset-bottom)))}
   #status{bottom:max(84px,calc(64px + env(safe-area-inset-bottom)));font-size:10px}
 }
 @media(hover:none),(pointer:coarse){
+  #coords{display:none}
   #action-button{display:block}
+  #sound-button{right:max(104px,calc(104px + env(safe-area-inset-right)));bottom:max(28px,calc(28px + env(safe-area-inset-bottom)))}
 }
 @media(prefers-reduced-motion:reduce){
   #title-bar .dot,#hint{animation:none}
@@ -84,6 +90,7 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
   <button id="journal-button" type="button" aria-label="Open signal log">LOG</button>
   <button id="quest-reset" type="button" aria-label="Restart signal quest" title="Restart signal quest">↻</button>
   <button id="action-button" type="button" aria-label="Scan or interact">SCAN</button>
+  <button id="sound-button" type="button" aria-label="Mute sound" title="Toggle sound">♪</button>
   <p class="sr-only" id="game-instructions">Move with WASD, arrow keys, or by selecting a destination. Press Space or Enter, or use the Scan button, to scan nearby residents or interact with the character you face.</p>
   <dialog id="journal-dialog" aria-labelledby="journal-title">
     <h2 id="journal-title">SIGNAL LOG</h2>
@@ -94,6 +101,7 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
 <script src="src/game-logic.js"></script>
 <script src="src/game-content.js"></script>
 <script src="src/progress.js"></script>
+<script src="src/feedback.js"></script>
 <script>
 // ══════════════════════════════════════════════════════
 // SETUP
@@ -111,6 +119,7 @@ const journalButton = document.getElementById('journal-button');
 const journalDialog = document.getElementById('journal-dialog');
 const journalList = document.getElementById('journal-list');
 const journalClose = document.getElementById('journal-close');
+const soundButton = document.getElementById('sound-button');
 
 const PX = 3;
 const TILE = 16;
@@ -172,6 +181,7 @@ const signalFragments = LittleAndroidContent.SIGNAL_FRAGMENTS.map(fragment => ({
 let progressStorage = null;
 try { progressStorage = window.localStorage; } catch {}
 const savedProgress = LittleAndroidProgress.loadProgress(progressStorage);
+const feedback = LittleAndroidFeedback.createFeedbackController(window, progressStorage);
 let progressGeneration = savedProgress.generation;
 for (const fragment of signalFragments) {
   fragment.discovered = savedProgress.discoveredFragments.includes(fragment.id);
@@ -649,6 +659,7 @@ function beginPlayerInteraction(npc) {
   player.interactArmTimer = 0.2;
   triggerNPCInteraction(npc);
   rememberNPC(npc);
+  feedback.play('interact');
   const dialogue = LittleAndroidContent.NPC_DIALOGUE[npc.type];
   showStatus(dialogue ? (quest.complete ? dialogue.complete : dialogue.active) : `LINK: ${npc.scanLabel || npc.type.toUpperCase()}`, 3.5);
 }
@@ -856,6 +867,7 @@ let targetIndex = 0;
 let clickMarker = null;
 
 canvas.addEventListener('click', (e) => {
+  feedback.unlock();
   canvas.focus({ preventScroll: true });
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
@@ -895,6 +907,8 @@ canvas.addEventListener('click', (e) => {
     }
   } else if (tileX !== player.tileX || tileY !== player.tileY) {
     showStatus('PATH BLOCKED');
+    feedback.play('blocked');
+    feedback.haptic(15);
   }
 });
 
@@ -907,6 +921,7 @@ function shouldHandleGameKey(target) {
 
 window.addEventListener('keydown', (e) => {
   if (!shouldHandleGameKey(e.target)) return;
+  feedback.unlock();
   const k = e.key.toLowerCase();
   if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' ','enter'].includes(k)) e.preventDefault();
   keysDown[k] = true;
@@ -1022,8 +1037,12 @@ function collectFragment(fragment) {
     quest.complete = true;
     document.body.classList.add('world-restored');
     showStatus('FACTORY LINK RESTORED', 4);
+    feedback.play('complete');
+    feedback.haptic([25, 35, 50]);
   } else {
     showStatus(`${fragment.name} RECOVERED · ${collected}/${signalFragments.length}`, 2.5);
+    feedback.play('collect');
+    feedback.haptic(25);
   }
   updateQuestUI();
   persistProgress();
@@ -1081,6 +1100,7 @@ function performAction() {
 }
 
 actionButton.addEventListener('click', () => {
+  feedback.unlock();
   canvas.focus({ preventScroll: true });
   performAction();
 });
@@ -1091,6 +1111,17 @@ journalButton.addEventListener('click', () => {
 });
 journalClose.addEventListener('click', () => journalDialog.close());
 journalDialog.addEventListener('close', () => canvas.focus({ preventScroll: true }));
+function updateSoundButton() {
+  const muted = feedback.isMuted();
+  soundButton.classList.toggle('muted', muted);
+  soundButton.setAttribute('aria-label', muted ? 'Enable sound' : 'Mute sound');
+  soundButton.textContent = muted ? '×' : '♪';
+}
+soundButton.addEventListener('click', () => {
+  const muted = feedback.toggleMuted();
+  updateSoundButton();
+  if (!muted) feedback.play('interact');
+});
 
 let statusTimer = 0;
 function showStatus(message, duration = 1.5) {
@@ -1136,6 +1167,7 @@ function triggerScanPulse() {
   player.idleCoreOn = true;
   player.idleTimer = 0;
   showStatus('SCANNING...');
+  feedback.play('scan');
   return true;
 }
 
@@ -1156,6 +1188,8 @@ function updateScanPulse(dt) {
       persistProgress();
       updateJournal();
       showStatus(`SIGNAL FOUND: ${fragment.name}`, 2.5);
+      feedback.play('discover');
+      feedback.haptic([15, 20, 15]);
     }
   }
 
@@ -1501,6 +1535,7 @@ function gameLoop(ts) {
 }
 updateQuestUI();
 updateJournal();
+updateSoundButton();
 if (quest.complete) {
   document.body.classList.add('world-restored');
   showStatus('FACTORY LINK RESTORED', 3);

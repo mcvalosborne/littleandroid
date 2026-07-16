@@ -17,6 +17,9 @@ if (!html.includes('src/game-content.js')) {
 if (!html.includes('src/progress.js')) {
   throw new Error('index.html must load the progress module');
 }
+if (!html.includes('src/feedback.js')) {
+  throw new Error('index.html must load the feedback module');
+}
 if (!html.includes('#ui-overlay button{pointer-events:auto}')) {
   throw new Error('Overlay controls must accept pointer input');
 }
@@ -28,5 +31,6 @@ new Function(inlineScripts[0][1]);
 require('../src/game-logic.js');
 require('../src/game-content.js');
 require('../src/progress.js');
+require('../src/feedback.js');
 
 console.log('Static checks passed.');
