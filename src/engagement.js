@@ -94,8 +94,8 @@
     });
   }
 
-  function completionText(challengeCode) {
-    return `I restored the Little Android factory (${challengeCode}). Explore it at https://littleandroid.com`;
+  function completionText(challengeCode, levelName = 'factory') {
+    return `I restored the Little Android ${levelName.toLowerCase()} (${challengeCode}). Explore it at https://littleandroid.com`;
   }
 
   return Object.freeze({

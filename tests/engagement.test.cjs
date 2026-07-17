@@ -48,3 +48,9 @@ test('completion copy contains only challenge and public URL', () => {
     'I restored the Little Android factory (D20260716-0042). Explore it at https://littleandroid.com',
   );
 });
+
+test('completion copy identifies the restored campaign zone', () => {
+  const text = completionText('D20260717-0001', 'OVERGROWN ARCHIVE');
+  assert.match(text, /overgrown archive/);
+  assert.match(text, /D20260717-0001/);
+});

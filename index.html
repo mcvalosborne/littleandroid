@@ -40,6 +40,8 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
 #share-button:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
 #briefing-button{position:absolute;top:max(22px,env(safe-area-inset-top));left:max(22px,env(safe-area-inset-left));z-index:20;width:34px;height:34px;border:1px solid #5A8848;border-radius:4px;background:rgba(10,10,10,.82);color:#A8C088;font:700 16px 'Silkscreen',monospace;cursor:pointer}
 #briefing-button:focus-visible,#briefing-start:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
+#level-button{position:absolute;top:max(64px,calc(42px + env(safe-area-inset-top)));left:max(22px,env(safe-area-inset-left));z-index:20;width:42px;height:30px;border:1px solid #D4A030;border-radius:4px;background:rgba(10,10,10,.82);color:#E8C040;font:10px 'Silkscreen',monospace;cursor:pointer}
+#level-button:focus-visible,#level-close:focus-visible,.level-option:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
 #journal-button{position:absolute;top:max(48px,calc(26px + env(safe-area-inset-top)));right:max(22px,env(safe-area-inset-right));z-index:20;width:42px;height:30px;border:1px solid #5A8848;border-radius:4px;background:rgba(10,10,10,.82);color:#A8C088;font:10px 'Silkscreen',monospace;cursor:pointer}
 #journal-button:focus-visible,#journal-close:focus-visible{outline:3px solid #E8E0D0;outline-offset:2px}
 #sound-button{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:20;width:38px;height:34px;border:1px solid #5A8848;border-radius:4px;background:rgba(10,10,10,.82);color:#A8C088;font:18px monospace;cursor:pointer}
@@ -64,6 +66,19 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
 .briefing-action{color:#B0A890}
 #briefing-note{margin-top:14px;color:#8A9870;font-size:9px;line-height:1.7}
 #briefing-start{width:100%;margin-top:18px;padding:11px 14px;border:2px solid #D4A030;border-radius:4px;background:#242018;color:#E8C040;font:700 12px 'Silkscreen',monospace;cursor:pointer}
+#level-dialog{width:min(500px,calc(100vw - 32px));padding:18px;border:2px solid #5A8848;border-radius:4px;background:#181820;color:#E8E0D0;font-family:'Silkscreen',monospace}
+#level-dialog::backdrop{background:rgba(10,10,10,.82)}
+#level-dialog h2{margin-bottom:6px;color:#E8C040;font-size:18px}
+#level-dialog>p{margin-bottom:16px;color:#8A9870;font-size:9px;line-height:1.6}
+#level-list{display:grid;border-top:1px solid #383030}
+.level-option{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:10px;width:100%;min-height:62px;padding:10px 4px;border:0;border-bottom:1px solid #383030;background:transparent;color:#E8E0D0;text-align:left;font-family:'Silkscreen',monospace;cursor:pointer}
+.level-option .level-number{color:#E8C040;font-size:13px;text-align:center}
+.level-option .level-name{font-size:11px;line-height:1.5}
+.level-option .level-state{color:#6B9848;font-size:8px;text-align:right}
+.level-option.current{background:#242018}
+.level-option:disabled{color:#585050;cursor:not-allowed}
+.level-option:disabled .level-number,.level-option:disabled .level-state{color:#585050}
+#level-close{margin-top:16px;padding:8px 12px;border:1px solid #D4A030;border-radius:4px;background:#181820;color:#E8C040;font:11px 'Silkscreen',monospace;cursor:pointer}
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 @media(max-width:600px){
   #ui-overlay{justify-content:flex-start;padding:calc(10px + env(safe-area-inset-top)) 10px 10px}
@@ -76,6 +91,7 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
   #quest-reset{top:calc(112px + env(safe-area-inset-top));right:12px}
   #share-button{top:calc(152px + env(safe-area-inset-top));right:12px}
   #briefing-button{top:calc(50px + env(safe-area-inset-top));left:12px}
+  #level-button{top:calc(90px + env(safe-area-inset-top));left:12px}
   #hint{bottom:max(88px,calc(68px + env(safe-area-inset-bottom)));width:70vw;font-size:10px;text-align:center}
   #action-button{display:block}
   #sound-button{right:max(104px,calc(104px + env(safe-area-inset-right)));bottom:max(28px,calc(28px + env(safe-area-inset-bottom)))}
@@ -107,6 +123,7 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
   <div id="status" role="status" aria-live="polite"></div>
   <div id="quest" aria-live="polite">SIGNALS 0/3</div>
   <button id="briefing-button" type="button" aria-label="Open mission briefing" title="Mission briefing">?</button>
+  <button id="level-button" type="button" aria-label="Select level" title="Select level">L1</button>
   <button id="journal-button" type="button" aria-label="Open signal log">LOG</button>
   <button id="quest-reset" type="button" aria-label="Restart signal quest" title="Restart signal quest">↻</button>
   <button id="share-button" type="button" aria-label="Share completion" title="Share completion">↗</button>
@@ -115,7 +132,7 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
   <p class="sr-only" id="game-instructions">Move with WASD, arrow keys, or by selecting a destination. Press Space or Enter, or use the Scan button, to scan nearby residents or interact with the character you face.</p>
   <dialog id="briefing-dialog" aria-labelledby="briefing-title">
     <div id="briefing-header">
-      <span>UNIT-01 // DAILY ASSIGNMENT</span>
+      <span id="briefing-eyebrow">UNIT-01 // DAILY ASSIGNMENT</span>
       <h2 id="briefing-title">RESTORE THE LINK</h2>
     </div>
     <div id="briefing-body">
@@ -128,6 +145,16 @@ canvas:focus-visible{box-shadow:inset 0 0 0 3px #E8C040}
       <p id="briefing-note">Residents remember what you discover. Progress is saved on this device.</p>
       <button id="briefing-start" type="button">BEGIN</button>
     </div>
+  </dialog>
+  <dialog id="level-dialog" aria-labelledby="level-title">
+    <h2 id="level-title">ZONE SELECT</h2>
+    <p>RESTORE EACH LINK TO OPEN THE NEXT ZONE.</p>
+    <div id="level-list">
+      <button id="level-option-1" class="level-option" type="button"><span class="level-number">01</span><span class="level-name">RIVER FACTORY</span><span id="level-state-1" class="level-state">OPEN</span></button>
+      <button id="level-option-2" class="level-option" type="button"><span class="level-number">02</span><span class="level-name">FLOODED RELAY</span><span id="level-state-2" class="level-state">LOCKED</span></button>
+      <button id="level-option-3" class="level-option" type="button"><span class="level-number">03</span><span class="level-name">OVERGROWN ARCHIVE</span><span id="level-state-3" class="level-state">LOCKED</span></button>
+    </div>
+    <button id="level-close" type="button">CLOSE</button>
   </dialog>
   <dialog id="journal-dialog" aria-labelledby="journal-title">
     <h2 id="journal-title">SIGNAL LOG</h2>
@@ -156,6 +183,21 @@ const questResetButton = document.getElementById('quest-reset');
 const briefingButton = document.getElementById('briefing-button');
 const briefingDialog = document.getElementById('briefing-dialog');
 const briefingStart = document.getElementById('briefing-start');
+const briefingEyebrow = document.getElementById('briefing-eyebrow');
+const briefingObjective = document.getElementById('briefing-objective');
+const levelButton = document.getElementById('level-button');
+const levelDialog = document.getElementById('level-dialog');
+const levelClose = document.getElementById('level-close');
+const levelOptions = [
+  document.getElementById('level-option-1'),
+  document.getElementById('level-option-2'),
+  document.getElementById('level-option-3'),
+];
+const levelStates = [
+  document.getElementById('level-state-1'),
+  document.getElementById('level-state-2'),
+  document.getElementById('level-state-3'),
+];
 const journalButton = document.getElementById('journal-button');
 const journalDialog = document.getElementById('journal-dialog');
 const journalList = document.getElementById('journal-list');
@@ -207,26 +249,48 @@ const DG0='#D8C8B0',DG1='#C0B098',DG2='#988870';
 const {
   DIR,
   oppositeDir,
-  createWorldMap,
+  createLevelMap,
   findPath: findWorldPath,
   entityOccupiesTile,
   isTileReserved,
   tickTimedItems,
+  isGateOpen,
+  canCollectObjective,
 } = LittleAndroidLogic;
-const world = createWorldMap(77);
+let browserStorage = null;
+try { browserStorage = window.localStorage; } catch {}
+const { LEVELS, LEVEL_IDS } = LittleAndroidContent;
+let campaign = LittleAndroidProgress.loadCampaign(browserStorage, LEVEL_IDS);
+function requestedLevelId() {
+  const search = window.location && typeof window.location.search === 'string' ? window.location.search : '';
+  const match = search.match(/[?&]level=([^&]+)/);
+  try { return match ? decodeURIComponent(match[1]) : ''; } catch { return ''; }
+}
+const requestedLevel = requestedLevelId();
+const selectedLevelId = LEVEL_IDS.includes(requestedLevel) && LittleAndroidProgress.isLevelUnlocked(campaign, requestedLevel, LEVEL_IDS)
+  ? requestedLevel
+  : campaign.activeLevelId;
+const activeLevel = LittleAndroidContent.getLevel(
+  LittleAndroidProgress.isLevelUnlocked(campaign, selectedLevelId, LEVEL_IDS) ? selectedLevelId : LEVEL_IDS[0],
+);
+campaign = { ...campaign, activeLevelId: activeLevel.id };
+LittleAndroidProgress.saveCampaign(browserStorage, campaign, LEVEL_IDS);
+const world = createLevelMap(activeLevel.id, activeLevel.seed);
 const MW = world.width, MH = world.height, map = world.map;
 const dailyChallenge = LittleAndroidEngagement.createDailyChallenge(
   new Date(),
-  LittleAndroidContent.SIGNAL_FRAGMENTS.map(fragment => fragment.id),
+  activeLevel.objectives.map(fragment => fragment.id),
 );
-const fragmentContent = new Map(LittleAndroidContent.SIGNAL_FRAGMENTS.map(fragment => [fragment.id, fragment]));
-const signalFragments = dailyChallenge.order.map(id => ({
+const fragmentContent = new Map(activeLevel.objectives.map(fragment => [fragment.id, fragment]));
+const objectiveOrder = activeLevel.mode === 'gates'
+  ? activeLevel.objectives.map(fragment => fragment.id)
+  : dailyChallenge.order;
+const signalFragments = objectiveOrder.map(id => ({
   ...fragmentContent.get(id),
-  discovered: false,
+  discovered: fragmentContent.get(id).visible === true,
   collected: false,
 }));
-let progressStorage = null;
-try { progressStorage = window.localStorage; } catch {}
+const progressStorage = LittleAndroidProgress.createLevelStorage(browserStorage, activeLevel.id);
 const loadedProgress = LittleAndroidProgress.loadProgress(progressStorage);
 const savedProgress = LittleAndroidProgress.scopeProgressToChallenge(
   loadedProgress,
@@ -235,12 +299,12 @@ const savedProgress = LittleAndroidProgress.scopeProgressToChallenge(
 if (loadedProgress.challengeDate !== savedProgress.challengeDate) {
   LittleAndroidProgress.saveProgress(progressStorage, savedProgress);
 }
-const feedback = LittleAndroidFeedback.createFeedbackController(window, progressStorage);
-const metrics = LittleAndroidEngagement.createLocalMetrics(progressStorage);
+const feedback = LittleAndroidFeedback.createFeedbackController(window, browserStorage);
+const metrics = LittleAndroidEngagement.createLocalMetrics(browserStorage);
 metrics.increment('sessions');
 let progressGeneration = savedProgress.generation;
 for (const fragment of signalFragments) {
-  fragment.discovered = savedProgress.discoveredFragments.includes(fragment.id);
+  fragment.discovered = fragment.visible === true || savedProgress.discoveredFragments.includes(fragment.id);
   fragment.collected = savedProgress.collectedFragments.includes(fragment.id);
 }
 const discoveredNPCs = new Set(savedProgress.discoveredNPCs);
@@ -251,6 +315,10 @@ const quest = {
 function isWalkable(tx,ty){
   if(tx<0||ty<0||tx>=MW||ty>=MH)return false;
   const t=map[ty][tx];
+  if(t===18){
+    const gate=activeLevel.gates.find(item=>item.x===tx&&item.y===ty);
+    return isGateOpen(gate,signalFragments.filter(fragment=>fragment.collected).map(fragment=>fragment.id));
+  }
   return t!==4&&t!==5&&t!==6&&t!==7&&t!==8&&t!==9&&t!==11&&t!==13&&t!==14&&t!==17;
 }
 function isTileOccupiedByNPC(tx,ty,excludeNPC){
@@ -280,6 +348,7 @@ function drawTile(wx,wy,type,sx,sy){
     case 15:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,7,6,2,10,TK2);gr(sx,sy,3,3,10,4,TK1);gr(sx,sy,4,4,8,2,TK0);gp(sx,sy,9,5,S3);gp(sx,sy,10,4,S3);gp(sx,sy,10,6,S3);break;
     case 16:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,5,8,1,5,GR2);gr(sx,sy,10,9,1,4,GR2);gp(sx,sy,4,7,HA0);gp(sx,sy,5,6,HA0);gp(sx,sy,6,7,HA0);gp(sx,sy,5,7,CORE0);gp(sx,sy,9,8,CORE0);gp(sx,sy,10,7,CORE0);gp(sx,sy,11,8,CORE0);gp(sx,sy,10,8,HA1);gp(sx,sy,3,13,GR1);gp(sx,sy,12,11,GR1);break;
     case 17:ctx.fillStyle=PT2;ctx.fillRect(sx,sy,TS,TS);gr(sx,sy,14,0,2,16,WT2);gp(sx,sy,2,5,GR0);gp(sx,sy,1,10,GR0);gp(sx,sy,4,14,PT1);break;
+    case 18:{const gate=activeLevel.gates.find(item=>item.x===wx&&item.y===wy);const open=gate&&signalFragments.some(fragment=>fragment.id===gate.after&&fragment.collected);ctx.fillStyle=open?TK1:WT2;ctx.fillRect(sx,sy,TS,TS);if(open){for(let px=0;px<16;px+=3)gr(sx,sy,px,0,1,16,TK2)}else{gr(sx,sy,2,1,3,14,MT1);gr(sx,sy,7,1,3,14,MT0);gr(sx,sy,12,1,3,14,MT1);gr(sx,sy,0,7,16,2,CORE2)}break}
     default:ctx.fillStyle=GR0;ctx.fillRect(sx,sy,TS,TS);
   }
 }
@@ -291,9 +360,9 @@ function drawTile(wx,wy,type,sx,sy){
 // UNIT-01 PLAYER CHARACTER (Full State Machine)
 // ══════════════════════════════════════════════════════
 const player = {
-  tileX:4, tileY:6, // current tile (integer when stationary)
-  renderX:4, renderY:6, // interpolated render position
-  facing:'south',
+  tileX:activeLevel.spawn.x, tileY:activeLevel.spawn.y, // current tile (integer when stationary)
+  renderX:activeLevel.spawn.x, renderY:activeLevel.spawn.y, // interpolated render position
+  facing:activeLevel.spawn.facing,
   state:'IDLE', // IDLE, WALKING, BLOCKED, INTERACTING
   walkFrame:0, walkTimer:0,
   idleTimer:0, idleCoreOn:true,
@@ -419,33 +488,16 @@ function makeNPC(type, x, y, facing, config) {
   };
 }
 
-// Create NPCs
-npcs.push(makeNPC('worker',3,4,'south'));
-npcs.push(makeNPC('worker',6,4,'east'));
-npcs.push(makeNPC('scout',8,8,'south',{patrol:[{x:8,y:8,f:'south'},{x:12,y:8,f:'east'},{x:12,y:6,f:'north'},{x:8,y:6,f:'west'}]}));
-npcs.push(makeNPC('elder',5,3,'south'));
-npcs.push(makeNPC('farmer',3,14,'south'));
-npcs.push(makeNPC('mechanic',9,5,'north',{patrolling:false}));
-npcs.push(makeNPC('child',6,12,'south'));
-npcs.push(makeNPC('dog',7,11,'east'));
-
-// Scan labels (fun names)
-const SCAN_LABELS = {
-  worker: ['UNIT-47','UNIT-12'],
-  scout: 'RECON-3',
-  elder: 'OVERSEER',
-  farmer: 'OLD DALE',
-  mechanic: 'SPARKS',
-  child: 'LIL BIT',
-  dog: 'GOOD BOY',
-};
-let workerIdx = 0;
-for (const npc of npcs) {
-  if (npc.type === 'worker') {
-    npc.scanLabel = SCAN_LABELS.worker[workerIdx++];
-  } else {
-    npc.scanLabel = SCAN_LABELS[npc.type] || npc.type.toUpperCase();
-  }
+// Create the residents configured for the active zone.
+for (const spec of activeLevel.npcs) {
+  const config = {
+    ...spec,
+    patrol: spec.patrol || [],
+    patrolling: spec.patrolling === true,
+  };
+  const npc = makeNPC(spec.type, spec.x, spec.y, spec.facing, config);
+  npc.scanLabel = spec.label;
+  npcs.push(npc);
 }
 
 // Scan label display state (persists after wavefront passes)
@@ -719,7 +771,17 @@ function beginPlayerInteraction(npc) {
   feedback.play('interact');
   metrics.markOnce('first_interaction');
   const dialogue = LittleAndroidContent.NPC_DIALOGUE[npc.type];
-  showStatus(dialogue ? (quest.complete ? dialogue.complete : dialogue.active) : `LINK: ${npc.scanLabel || npc.type.toUpperCase()}`, 3.5);
+  let message = dialogue ? (quest.complete ? dialogue.complete : dialogue.active) : `LINK: ${npc.scanLabel || npc.type.toUpperCase()}`;
+  if (!quest.complete && activeLevel.mode === 'gates') {
+    const next = signalFragments.find(fragment => !fragment.collected);
+    if (next) message = `ROUTE CONTROL: ACTIVATE ${next.name}`;
+  }
+  if (!quest.complete && activeLevel.mode === 'sequence' && npc.config.clue) {
+    const next = signalFragments.find(fragment => !fragment.collected);
+    const sequenceIndex = signalFragments.indexOf(next) + 1;
+    if (next) message = `TRACE ${sequenceIndex}/3 · ${next.name} · ${next.clue}`;
+  }
+  showStatus(message, 4.5);
 }
 
 function requestPlayerInteraction(npc) {
@@ -1032,9 +1094,50 @@ function getActiveFragmentAt(x, y) {
 
 function updateQuestUI() {
   const collected = signalFragments.filter(fragment => fragment.collected).length;
-  questEl.textContent = quest.complete ? `FACTORY ONLINE · ${dailyChallenge.code}` : `SIGNALS ${collected}/${signalFragments.length} · ${dailyChallenge.code}`;
+  questEl.textContent = quest.complete ? `${activeLevel.completeLabel} · ${dailyChallenge.code}` : `${activeLevel.objectiveLabel} ${collected}/${signalFragments.length} · ${dailyChallenge.code}`;
   questResetButton.classList.toggle('show', quest.complete);
   shareButton.classList.toggle('show', quest.complete);
+}
+
+function updateLevelMenu() {
+  levelButton.textContent = `L${activeLevel.number}`;
+  levelButton.setAttribute('aria-label', `Select level. Current: ${activeLevel.name}`);
+  levelButton.title = `Level ${activeLevel.number}: ${activeLevel.name}`;
+  for (let index = 0; index < LEVELS.length; index++) {
+    const level = LEVELS[index];
+    const option = levelOptions[index];
+    const unlocked = LittleAndroidProgress.isLevelUnlocked(campaign, level.id, LEVEL_IDS);
+    const complete = campaign.completedLevelIds.includes(level.id);
+    const current = level.id === activeLevel.id;
+    option.disabled = !unlocked;
+    option.classList.toggle('current', current);
+    levelStates[index].textContent = current ? 'CURRENT' : complete ? 'COMPLETE' : unlocked ? 'OPEN' : 'LOCKED';
+  }
+}
+
+function selectLevel(levelId) {
+  if (!LittleAndroidProgress.isLevelUnlocked(campaign, levelId, LEVEL_IDS)) return false;
+  if (levelId === activeLevel.id) {
+    levelDialog.close();
+    return true;
+  }
+  campaign = { ...campaign, activeLevelId: levelId };
+  LittleAndroidProgress.saveCampaign(browserStorage, campaign, LEVEL_IDS);
+  const target = `?level=${encodeURIComponent(levelId)}`;
+  if (window.location && typeof window.location.assign === 'function') window.location.assign(target);
+  else if (window.location) window.location.search = target;
+  return true;
+}
+
+function recordCampaignCompletion() {
+  const alreadyComplete = campaign.completedLevelIds.includes(activeLevel.id);
+  campaign = LittleAndroidProgress.completeCampaignLevel(campaign, activeLevel.id, LEVEL_IDS);
+  LittleAndroidProgress.saveCampaign(browserStorage, campaign, LEVEL_IDS);
+  updateLevelMenu();
+  if (!alreadyComplete) metrics.increment(`level_${activeLevel.number}_complete`);
+  if (alreadyComplete) return '';
+  const nextLevel = LEVELS[activeLevel.number];
+  return nextLevel ? `LEVEL ${nextLevel.number} OPEN` : 'CAMPAIGN COMPLETE';
 }
 
 function currentProgress() {
@@ -1081,29 +1184,46 @@ function rememberNPC(npc) {
 }
 
 function updateJournal() {
-  const fragmentLines = signalFragments.map(fragment => (
+  const fragmentLines = activeLevel.objectives.map(objective => {
+    const fragment = signalFragments.find(item => item.id === objective.id);
+    return (
     `${fragment.collected ? '[OK]' : fragment.discovered ? '[  ]' : '[??]'} ${fragment.discovered ? fragment.name : 'UNKNOWN SIGNAL'}`
-  ));
+    );
+  });
   const npcLines = npcs.map(npc => {
     const identity = npc.scanLabel || npc.type.toUpperCase();
     return `${discoveredNPCs.has(identity) ? '[ID]' : '[??]'} ${discoveredNPCs.has(identity) ? identity : 'UNKNOWN RESIDENT'}`;
   });
-  journalList.textContent = `COMPONENTS\n${fragmentLines.join('\n')}\n\nRESIDENTS\n${npcLines.join('\n')}`;
+  const sequenceNote = activeLevel.mode === 'sequence' && !quest.complete ? '\nORDER: ASK A RESIDENT FOR THE NEXT TRACE' : '';
+  journalList.textContent = `${activeLevel.objectiveLabel}${sequenceNote}\n${fragmentLines.join('\n')}\n\nRESIDENTS\n${npcLines.join('\n')}`;
 }
 
 function collectFragment(fragment) {
   if (!fragment || fragment.collected) return false;
+  if (!canCollectObjective(
+    activeLevel.mode,
+    signalFragments.map(item => item.id),
+    signalFragments.filter(item => item.collected).map(item => item.id),
+    fragment.id,
+  )) {
+      showStatus('SEQUENCE REJECTED · ASK A RESIDENT', 2.5);
+      feedback.play('blocked');
+      feedback.haptic(15);
+      return false;
+  }
   fragment.collected = true;
   const collected = signalFragments.filter(item => item.collected).length;
   if (collected === signalFragments.length) {
     quest.complete = true;
     document.body.classList.add('world-restored');
-    showStatus('FACTORY LINK RESTORED', 4);
+    const milestone = recordCampaignCompletion();
+    showStatus(`${activeLevel.completeLabel}${milestone ? ` · ${milestone}` : ''}`, 4);
     feedback.play('complete');
     feedback.haptic([25, 35, 50]);
     metrics.increment('completions');
   } else {
-    showStatus(`${fragment.name} RECOVERED · ${collected}/${signalFragments.length}`, 2.5);
+    const verb = activeLevel.mode === 'gates' ? 'LINKED · FLOODGATE OPEN' : activeLevel.mode === 'sequence' ? 'MEMORY ACCEPTED' : 'RECOVERED';
+    showStatus(`${fragment.name} ${verb} · ${collected}/${signalFragments.length}`, 2.5);
     feedback.play('collect');
     feedback.haptic(25);
   }
@@ -1131,7 +1251,7 @@ function resetQuest() {
   scanLabels = [];
   scanCooldownTimer = 0;
   for (const fragment of signalFragments) {
-    fragment.discovered = false;
+    fragment.discovered = fragment.visible === true;
     fragment.collected = false;
   }
   discoveredNPCs.clear();
@@ -1174,7 +1294,9 @@ actionButton.addEventListener('click', () => {
   performAction();
 });
 questResetButton.addEventListener('click', () => requestQuestReset());
-const BRIEFING_SEEN_KEY = 'littleandroid.briefingSeen';
+const BRIEFING_SEEN_KEY = activeLevel.id === 'river-factory'
+  ? 'littleandroid.briefingSeen'
+  : `littleandroid.briefingSeen.${activeLevel.id}`;
 function rememberBriefing() {
   try { window.localStorage.setItem(BRIEFING_SEEN_KEY, '1'); } catch {}
 }
@@ -1187,6 +1309,15 @@ briefingDialog.addEventListener('close', () => {
   rememberBriefing();
   canvas.focus({ preventScroll: true });
 });
+levelButton.addEventListener('click', () => {
+  updateLevelMenu();
+  levelDialog.showModal();
+});
+for (let index = 0; index < levelOptions.length; index++) {
+  levelOptions[index].addEventListener('click', () => selectLevel(LEVEL_IDS[index]));
+}
+levelClose.addEventListener('click', () => levelDialog.close());
+levelDialog.addEventListener('close', () => canvas.focus({ preventScroll: true }));
 journalButton.addEventListener('click', () => {
   updateJournal();
   journalDialog.showModal();
@@ -1206,7 +1337,7 @@ soundButton.addEventListener('click', () => {
 });
 
 async function shareCompletion() {
-  const text = LittleAndroidEngagement.completionText(dailyChallenge.code);
+  const text = LittleAndroidEngagement.completionText(dailyChallenge.code, activeLevel.name);
   metrics.increment('share_intent');
   if (window.navigator && typeof window.navigator.share === 'function') {
     try {
@@ -1242,7 +1373,8 @@ function updateActionButton() {
   const adjacentFragment = canAct ? getFacingFragment() : null;
   const adjacentNPC = canAct && !adjacentFragment ? getFacingNPC() : null;
   const coolingDown = !adjacentFragment && !adjacentNPC && scanCooldownTimer > 0;
-  actionButton.textContent = adjacentFragment ? 'GET' : adjacentNPC ? 'ACT' : coolingDown ? `${Math.ceil(scanCooldownTimer)}S` : 'SCAN';
+  const objectiveAction = activeLevel.mode === 'scan' ? 'GET' : 'LINK';
+  actionButton.textContent = adjacentFragment ? objectiveAction : adjacentNPC ? 'ACT' : coolingDown ? `${Math.ceil(scanCooldownTimer)}S` : 'SCAN';
   actionButton.classList.toggle('cooldown', coolingDown);
   actionButton.setAttribute(
     'aria-label',
@@ -1483,15 +1615,15 @@ function render() {
     } else drawTile(wx, wy, map[wy][wx], sx, sy);
   }
 
-  // Factory sign - "ROBOTS" across front wall (row 3, columns 2-7)
+  // Zone status sign.
   {
-    const signY = 3, signX = 2;
+    const { x: signX, y: signY, width: signWidth } = activeLevel.sign;
     const sx = Math.floor(signX * TS - camX);
     const sy = Math.floor(signY * TS - camY);
     // Sign board background (spans 6 tiles wide, centered vertically in tile)
     const boardX = sx + PX * 1;
     const boardY = sy + PX * 4;
-    const boardW = 6 * TS - PX * 2;
+    const boardW = signWidth * TS - PX * 2;
     const boardH = PX * 8;
     ctx.fillStyle = quest.complete ? CORE2 : FC2;
     ctx.fillRect(boardX, boardY, boardW, boardH);
@@ -1501,7 +1633,7 @@ function render() {
     ctx.font = `${PX * 5}px "Press Start 2P", monospace`;
     ctx.textAlign = 'center';
     ctx.fillStyle = FC2;
-    ctx.fillText(quest.complete ? 'ONLINE' : 'ROBOTS', boardX + boardW/2, boardY + boardH - PX*2);
+    ctx.fillText(quest.complete ? activeLevel.sign.complete : activeLevel.sign.active, boardX + boardW/2, boardY + boardH - PX*2);
     ctx.textAlign = 'left';
   }
 
@@ -1643,11 +1775,16 @@ function gameLoop(ts) {
 updateQuestUI();
 updateJournal();
 updateSoundButton();
+updateLevelMenu();
+document.title = `Little Android · ${activeLevel.name}`;
+briefingEyebrow.textContent = `UNIT-01 // LEVEL ${activeLevel.number} // ${activeLevel.name}`;
+briefingObjective.textContent = activeLevel.briefing;
 if (quest.complete) {
   document.body.classList.add('world-restored');
-  showStatus('FACTORY LINK RESTORED', 3);
+  recordCampaignCompletion();
+  showStatus(activeLevel.completeLabel, 3);
 } else {
-  showStatus('OBJECTIVE: LOCATE 3 SIGNALS', 4);
+  showStatus(`OBJECTIVE: ${activeLevel.objectiveLabel} 0/${signalFragments.length}`, 4);
 }
 let hasSeenBriefing = false;
 try { hasSeenBriefing = window.localStorage.getItem(BRIEFING_SEEN_KEY) === '1'; } catch {}
