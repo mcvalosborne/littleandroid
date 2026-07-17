@@ -12,6 +12,14 @@ const {
   mergeProgress,
   saveProgress,
   clearProgress,
+  CAMPAIGN_KEY,
+  createLevelStorage,
+  defaultCampaign,
+  parseCampaign,
+  loadCampaign,
+  saveCampaign,
+  isLevelUnlocked,
+  completeCampaignLevel,
 } = require('../src/progress.js');
 
 function memoryStorage() {
@@ -128,4 +136,33 @@ test('a newer reset generation defeats stale tab writes', () => {
     complete: true,
   };
   assert.deepEqual(mergeProgress(reset, stale, ['field-coil']), reset);
+});
+
+test('level storage isolates saves while preserving the original river key', () => {
+  const storage = memoryStorage();
+  const river = createLevelStorage(storage, 'river-factory');
+  const relay = createLevelStorage(storage, 'flooded-relay');
+  river.setItem(SAVE_KEY, 'river');
+  relay.setItem(SAVE_KEY, 'relay');
+  assert.equal(storage.getItem(SAVE_KEY), 'river');
+  assert.equal(storage.getItem(`${SAVE_KEY}.flooded-relay`), 'relay');
+  assert.equal(river.getItem(SAVE_KEY), 'river');
+  assert.equal(relay.getItem(SAVE_KEY), 'relay');
+});
+
+test('campaign completion unlocks levels sequentially', () => {
+  const ids = ['river-factory', 'flooded-relay', 'overgrown-archive'];
+  const initial = defaultCampaign(ids);
+  assert.equal(isLevelUnlocked(initial, ids[0], ids), true);
+  assert.equal(isLevelUnlocked(initial, ids[1], ids), false);
+
+  const afterRiver = completeCampaignLevel(initial, ids[0], ids);
+  assert.equal(isLevelUnlocked(afterRiver, ids[1], ids), true);
+  assert.equal(isLevelUnlocked(afterRiver, ids[2], ids), false);
+
+  const storage = memoryStorage();
+  assert.equal(saveCampaign(storage, { ...afterRiver, activeLevelId: ids[1] }, ids), true);
+  assert.equal(storage.getItem(CAMPAIGN_KEY) !== null, true);
+  assert.deepEqual(loadCampaign(storage, ids), { ...afterRiver, activeLevelId: ids[1] });
+  assert.deepEqual(parseCampaign('{broken', ids), initial);
 });

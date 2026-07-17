@@ -10,6 +10,8 @@ const {
   entityOccupiesTile,
   isTileReserved,
   tickTimedItems,
+  isGateOpen,
+  canCollectObjective,
 } = require('../src/game-logic.js');
 
 test('direction helpers remain stable', () => {
@@ -62,4 +64,19 @@ test('timed labels use elapsed time instead of frame count', () => {
   const remaining = tickTimedItems(items, 0.5);
   assert.equal(remaining.length, 1);
   assert.equal(remaining[0].timer, 1.5);
+});
+
+test('relay gates open only after their linked objective', () => {
+  const gate = { x: 8, y: 10, after: 'intake-relay' };
+  assert.equal(isGateOpen(gate, []), false);
+  assert.equal(isGateOpen(gate, ['spillway-relay']), false);
+  assert.equal(isGateOpen(gate, ['intake-relay']), true);
+});
+
+test('archive objectives enforce the configured daily sequence', () => {
+  const order = ['root-index', 'canopy-memory', 'moss-ledger'];
+  assert.equal(canCollectObjective('sequence', order, [], 'canopy-memory'), false);
+  assert.equal(canCollectObjective('sequence', order, [], 'root-index'), true);
+  assert.equal(canCollectObjective('sequence', order, ['root-index'], 'canopy-memory'), true);
+  assert.equal(canCollectObjective('gates', order, [], 'moss-ledger'), true);
 });

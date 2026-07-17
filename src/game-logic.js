@@ -108,6 +108,74 @@
     return { width, height, map };
   }
 
+  function createFloodedRelayMap() {
+    const width = 24;
+    const height = 20;
+    const map = Array.from({ length: height }, () => Array(width).fill(5));
+
+    const carvePlatform = (x1, y1, x2, y2, tile) => {
+      for (let y = y1; y <= y2; y++) {
+        for (let x = x1; x <= x2; x++) map[y][x] = tile;
+      }
+    };
+    carvePlatform(1, 3, 7, 16, 2);
+    carvePlatform(9, 2, 15, 17, 10);
+    carvePlatform(17, 3, 22, 16, 2);
+
+    for (const x of [7, 8, 9, 15, 16, 17]) map[10][x] = 12;
+    map[10][8] = 18;
+    map[10][16] = 18;
+
+    for (const [x, y] of [[2, 4], [6, 15], [10, 3], [14, 16], [18, 4], [21, 15]]) {
+      map[y][x] = 15;
+    }
+    for (const [x, y] of [[3, 8], [12, 8], [20, 12]]) map[y][x] = 10;
+
+    return { width, height, map };
+  }
+
+  function createOvergrownArchiveMap(seed = 191) {
+    const width = 24;
+    const height = 20;
+    const map = Array.from({ length: height }, () => Array(width).fill(0));
+    const random = mulberry32(seed);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (random() < 0.38) map[y][x] = 1;
+      }
+    }
+    for (let x = 0; x < width; x++) {
+      map[0][x] = 14;
+      map[height - 1][x] = 14;
+    }
+    for (let y = 0; y < height; y++) {
+      map[y][0] = 14;
+      map[y][width - 1] = 14;
+    }
+
+    for (let y = 1; y <= 14; y++) map[y][8] = 8;
+    for (const y of [5, 11]) map[y][8] = 2;
+    for (let y = 5; y <= 18; y++) map[y][16] = 8;
+    for (const y of [9, 15]) map[y][16] = 2;
+    for (let x = 8; x <= 16; x++) map[9][x] = 9;
+    map[9][12] = 2;
+
+    for (const [x, y] of [[3, 2], [6, 3], [3, 15], [6, 17], [11, 2], [14, 4], [11, 14], [14, 17], [19, 2], [21, 7], [19, 17]]) {
+      map[y][x] = 6;
+      if (y + 1 < height - 1) map[y + 1][x] = 7;
+    }
+    for (const [x, y] of [[4, 8], [12, 4], [20, 11]]) map[y][x] = 15;
+
+    return { width, height, map };
+  }
+
+  function createLevelMap(levelId, seed) {
+    if (levelId === 'flooded-relay') return createFloodedRelayMap();
+    if (levelId === 'overgrown-archive') return createOvergrownArchiveMap(seed || 191);
+    return createWorldMap(seed || 77);
+  }
+
   function findPath(startX, startY, endX, endY, isWalkable, options = {}) {
     const sx = Math.round(startX);
     const sy = Math.round(startY);
@@ -190,14 +258,29 @@
     return items.filter(item => item.timer > 0);
   }
 
+  function isGateOpen(gate, collectedObjectiveIds) {
+    return Boolean(gate && Array.isArray(collectedObjectiveIds) && collectedObjectiveIds.includes(gate.after));
+  }
+
+  function canCollectObjective(mode, orderedObjectiveIds, collectedObjectiveIds, objectiveId) {
+    if (mode !== 'sequence') return true;
+    const nextId = orderedObjectiveIds.find(id => !collectedObjectiveIds.includes(id));
+    return nextId === objectiveId;
+  }
+
   return Object.freeze({
     DIR,
     oppositeDir,
     mulberry32,
     createWorldMap,
+    createFloodedRelayMap,
+    createOvergrownArchiveMap,
+    createLevelMap,
     findPath,
     entityOccupiesTile,
     isTileReserved,
     tickTimedItems,
+    isGateOpen,
+    canCollectObjective,
   });
 });

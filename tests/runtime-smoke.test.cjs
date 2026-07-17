@@ -73,7 +73,7 @@ test('runtime initializes and renders a frame', async () => {
     clearTimeout,
     innerWidth: 800,
     innerHeight: 600,
-    document: { hidden: false, body: element(), getElementById: id => elements[id] },
+    document: { hidden: false, body: element(), getElementById: id => elements[id] || (elements[id] = element()) },
     window: {
       innerWidth: 800,
       innerHeight: 600,
@@ -112,7 +112,7 @@ test('runtime initializes and renders a frame', async () => {
     clipboard: { writeText: () => Promise.reject(new Error('denied')) },
   };
   await vm.runInContext('shareCompletion()', sandbox);
-  assert.match(elements.status.textContent, /I restored the Little Android factory/);
+  assert.match(elements.status.textContent, /I restored the Little Android river factory/);
 
   const retrieval = vm.runInContext(`
     const fragment = signalFragments[0];
@@ -210,7 +210,7 @@ test('NPC movement rejects a destination reserved earlier in the frame', () => {
   const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'briefing-button': element(), 'briefing-dialog': element(), 'briefing-start': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element(), 'share-button': element() };
   const sandbox = {
     LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, LittleAndroidEngagement, console, Date, Math, setTimeout, clearTimeout,
-    document: { hidden: false, body: element(), getElementById: id => elements[id] },
+    document: { hidden: false, body: element(), getElementById: id => elements[id] || (elements[id] = element()) },
     window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, localStorage: memoryStorage(), addEventListener() {} },
     requestAnimationFrame() {},
   };
@@ -247,7 +247,7 @@ test('interaction waits for a moving NPC to finish its tile step', () => {
   const elements = { game: element(), coords: element(), hint: element(), emote: element(), status: element(), 'action-button': element(), quest: element(), 'quest-reset': element(), 'briefing-button': element(), 'briefing-dialog': element(), 'briefing-start': element(), 'journal-button': element(), 'journal-dialog': element(), 'journal-list': element(), 'journal-close': element(), 'sound-button': element(), 'share-button': element() };
   const sandbox = {
     LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, LittleAndroidEngagement, console, Date, Math, setTimeout, clearTimeout,
-    document: { hidden: false, body: element(), getElementById: id => elements[id] },
+    document: { hidden: false, body: element(), getElementById: id => elements[id] || (elements[id] = element()) },
     window: { innerWidth: 800, innerHeight: 600, devicePixelRatio: 1, localStorage: memoryStorage(), addEventListener() {} },
     requestAnimationFrame() {},
   };
@@ -269,4 +269,83 @@ test('interaction waits for a moving NPC to finish its tile step', () => {
     ({ waiting, afterStep: player.state });
   `, sandbox);
   assert.deepEqual({ ...state }, { waiting: 'WAITING_INTERACTION', afterStep: 'INTERACTING' });
+});
+
+function bootCampaignLevel(levelId, completedLevelIds) {
+  const html = fs.readFileSync('index.html', 'utf8');
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const storage = memoryStorage();
+  LittleAndroidProgress.saveCampaign(storage, {
+    activeLevelId: levelId,
+    completedLevelIds,
+  }, LittleAndroidContent.LEVEL_IDS);
+  const context2d = new Proxy(
+    { measureText: text => ({ width: String(text).length * 9 }) },
+    { get: (target, key) => key in target ? target[key] : () => {} },
+  );
+  const element = () => ({
+    style: {}, classList: { add() {}, remove() {}, toggle() {} }, setAttribute() {}, textContent: '', focus() {}, showModal() {}, close() {},
+    getBoundingClientRect: () => ({ left: 0, top: 0 }), addEventListener() {}, getContext: () => context2d,
+  });
+  const elements = { game: element() };
+  const sandbox = {
+    LittleAndroidLogic, LittleAndroidContent, LittleAndroidProgress, LittleAndroidFeedback, LittleAndroidEngagement,
+    console, Date, Math, setTimeout, clearTimeout, innerWidth: 800, innerHeight: 600,
+    document: { hidden: false, body: element(), getElementById: id => elements[id] || (elements[id] = element()) },
+    window: {
+      innerWidth: 800,
+      innerHeight: 600,
+      devicePixelRatio: 1,
+      localStorage: storage,
+      location: { search: `?level=${levelId}` },
+      addEventListener() {},
+    },
+    requestAnimationFrame() {},
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(script, sandbox);
+  return sandbox;
+}
+
+test('flooded relay runtime opens gates as relays are linked', () => {
+  const sandbox = bootCampaignLevel('flooded-relay', ['river-factory']);
+  const state = vm.runInContext(`({
+    level: activeLevel.id,
+    mode: activeLevel.mode,
+    player: [player.tileX, player.tileY],
+    objectives: signalFragments.map(fragment => fragment.id),
+    gateBefore: isWalkable(8, 10),
+    firstLinked: collectFragment(signalFragments[0]),
+    gateAfter: isWalkable(8, 10),
+  })`, sandbox);
+  assert.deepEqual(
+    { ...state, player: [...state.player], objectives: [...state.objectives] },
+    {
+      level: 'flooded-relay',
+      mode: 'gates',
+      player: [3, 10],
+      objectives: ['intake-relay', 'spillway-relay', 'tower-relay'],
+      gateBefore: false,
+      firstLinked: true,
+      gateAfter: true,
+    },
+  );
+});
+
+test('overgrown archive runtime rejects memories outside the daily sequence', () => {
+  const sandbox = bootCampaignLevel('overgrown-archive', ['river-factory', 'flooded-relay']);
+  const state = vm.runInContext(`({
+    level: activeLevel.id,
+    mode: activeLevel.mode,
+    player: [player.tileX, player.tileY],
+    wrongAccepted: collectFragment(signalFragments[1]),
+    firstAccepted: collectFragment(signalFragments[0]),
+    collected: signalFragments.filter(fragment => fragment.collected).map(fragment => fragment.id),
+  })`, sandbox);
+  assert.equal(state.level, 'overgrown-archive');
+  assert.equal(state.mode, 'sequence');
+  assert.deepEqual([...state.player], [3, 10]);
+  assert.equal(state.wrongAccepted, false);
+  assert.equal(state.firstAccepted, true);
+  assert.deepEqual([...state.collected], [vm.runInContext('signalFragments[0].id', sandbox)]);
 });

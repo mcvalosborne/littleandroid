@@ -6,7 +6,7 @@ An explorable pixel-art micro-world rendered entirely in the browser. Walk throu
 
 ## Controls
 
-First-time players receive a short mission briefing. Reopen it at any time with the `?` control.
+First-time players receive a short mission briefing for the active zone. Reopen it at any time with the `?` control, or use the `L1`/`L2`/`L3` control to change unlocked zones.
 
 | Action | Input |
 | --- | --- |
@@ -23,6 +23,10 @@ The current mobile experience supports tap-to-move. A dedicated touch action con
 - Grid-based movement and click-to-move pathfinding
 - A radial scan that reveals character identities
 - A three-part signal recovery quest with resident hints and daily challenge codes
+- A three-level campaign with permanent sequential unlocks:
+  - **River Factory:** scan for three hidden signal carriers
+  - **Flooded Relay:** activate control banks to open floodgates between platforms
+  - **Overgrown Archive:** follow resident clues and restore memories in the daily sequence
 - Persistent progress, a discovery journal, replay, and completion sharing
 - Optional sound, haptic feedback, touch controls, and reduced-motion support
 - No runtime framework, backend, or asset bundle
