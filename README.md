@@ -14,7 +14,7 @@ First-time players receive a short mission briefing for the active zone. Reopen 
 | Scan or interact | `Space` |
 | Interact with an adjacent character | Click/tap the character |
 
-The current mobile experience supports tap-to-move. A dedicated touch action control is tracked in [issue #2](https://github.com/mcvalosborne/littleandroid/issues/2).
+The mobile experience supports tap-to-move and a context-sensitive touch action control for scanning, interacting, and linking objectives.
 
 ## What is here
 
@@ -56,6 +56,21 @@ The project is moving from an ambient interactive vignette toward a polished fiv
 3. Complete mobile, accessibility, and performance work.
 4. Add a signal-recovery quest, narrative progression, and sensory polish.
 5. Add measured return, sharing, and community contribution loops.
+
+## Next quality milestone
+
+The campaign is functional and tested, but it still needs external validation and greater depth before it should be treated as a finished game. Work through these priorities in order:
+
+1. **Complete visual QA.** Capture and review first-visit, active-play, journal, zone-select, and completion states at 1440 by 900, 390 by 844, and 320 by 568. Resolve HUD overlap, clipped text, unclear controls, and weak visual hierarchy.
+2. **Run moderated playtests.** Test with at least five people who have not played before. Record time to first input, first discovery, each level completion, confusion points, abandonment, and qualitative enjoyment. Convert repeated problems into issues.
+3. **Audit accessibility.** Complete keyboard-only, reduced-motion, high-zoom, contrast, screen-reader, and automated accessibility checks. Every campaign objective and menu must be operable without a pointer and must announce meaningful state changes.
+4. **Deepen each level.** Add optional secrets, stronger puzzle variation, and more environmental reactions without padding the short-session format. Each zone should contain at least one memorable discovery outside its required objective path.
+5. **Improve campaign continuity.** Add concise transitions that explain what changed, why the next zone matters, and how resident dialogue reflects earlier restoration work.
+6. **Reconcile project tracking.** Update or close completed roadmap issues, split remaining work into focused deliverables, and link implementation pull requests and verification evidence.
+7. **Validate engagement responsibly.** Define privacy-preserving completion, replay, return, and share-intent measures; establish a baseline; and avoid accounts, fingerprinting, or raw event histories.
+8. **Finish the community pipeline.** Document and test a safe robot, dialogue, or map contribution workflow from proposal through validation and merge.
+
+The milestone is complete when representative desktop and mobile evidence is attached, the five-person test has no repeated critical blocker, no critical accessibility issue remains, roadmap state matches the codebase, and the engagement baseline can be measured without collecting personal data.
 
 ## Contributing
 
